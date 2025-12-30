@@ -7,7 +7,12 @@ import { net } from "./net.js";
 // Connect to network on startup
 (async () => {
   try {
-    await net.connect(prompt("Enter your name:") || "Player");
+    let name = localStorage.getItem("playerName");
+    if (!name) {
+      name = prompt("Enter your name:");
+      if (name) localStorage.setItem("playerName", name);
+    }
+    await net.connect(name || "Player");
   } catch (error) {
     console.error("Failed to connect to server:", error);
     alert("Could not connect to game server. Check console for details.");

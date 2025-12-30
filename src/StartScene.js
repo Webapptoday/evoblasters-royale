@@ -35,19 +35,16 @@ export class StartScene extends Phaser.Scene {
       backgroundColor: "rgba(0,0,0,0.55)", padding: { left: 18, right: 18, top: 10, bottom: 10 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    const SERVER_URL = "http://localhost:3000";
-    if (!this.game.socket) this.game.socket = io(SERVER_URL);
-
     btn.on("pointerdown", () => {
       const name = input.value.trim() || "Player";
       this.game.playerName = name;
-      this.game.socket.emit("setName", { name });
+      localStorage.setItem("playerName", name);
       input.remove();
       this.scene.start("LobbyScene");
     });
 
     this.events.once("shutdown", () => {
-      if (input.isConnected) input.remove();
+      if (input && input.parentNode) input.remove();
     });
   }
 }
