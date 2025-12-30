@@ -5,18 +5,19 @@ import { GameScene } from "./GameScene.js";
 import { net } from "./net.js";
 
 // Connect to network on startup
-(async () => {
-  try {
-    let name =
-      localStorage.getItem("playerName") ||
-      `Player${Math.floor(Math.random() * 10000)}`;
-    localStorage.setItem("playerName", name);
-    await net.connect(name || "Player");
-  } catch (error) {
-    console.error("Failed to connect to server:", error);
-    alert("Could not connect to game server. Check console for details.");
-  }
-})();
+// DISABLED: net.connect() is now called when START button is clicked
+// (async () => {
+//   try {
+//     let name =
+//       localStorage.getItem("playerName") ||
+//       `Player${Math.floor(Math.random() * 10000)}`;
+//     localStorage.setItem("playerName", name);
+//     await net.connect(name || "Player");
+//   } catch (error) {
+//     console.error("Failed to connect to server:", error);
+//     alert("Could not connect to game server. Check console for details.");
+//   }
+// })();
 
 const config = {
   type: Phaser.AUTO,

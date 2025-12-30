@@ -35,12 +35,19 @@ export class StartScene extends Phaser.Scene {
       backgroundColor: "rgba(0,0,0,0.55)", padding: { left: 18, right: 18, top: 10, bottom: 10 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    btn.on("pointerdown", () => {
+    btn.on("pointerdown", async () => {
       const name = input.value.trim() || "Player";
       this.game.playerName = name;
       localStorage.setItem("playerName", name);
       input.remove();
-      this.scene.start("LobbyScene");
+      
+      try {
+        await net.connect(name);
+        this.scene.start("LobbyScene");
+      } catch (error) {
+        console.error("Failed to connect to server:", error);
+        alert("Could not connect to game server. Check console for details.");
+      }
     });
 
     this.events.once("shutdown", () => {
