@@ -334,145 +334,6 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.gameOver = false;
-
-    // ---- Multiplayer (authoritative) ----
-    this.socket = this.game.socket;
-    this.myId = null;
-    this.otherPlayers = {};
-    this.nameTags = {};
-    this.otherHp = {};
-    this.otherHpBars = {};
-    this.isAlive = true;
-    this.netBullets = {};
-    this.elimCause = null; // { by: playerId }
-
-    if (this.socket) {
-      // Initialize from cached match info if available (in case event fired before entering GameScene)
-      if (this.game.matchInfo && this.game.matchInfo.players) {
-        const { players } = this.game.matchInfo;
-        Object.entries(players).forEach(([id, p]) => {
-          if (id === this.socket.id) {
-            this.myId = id;
-            this.player.setPosition(p.x, p.y);
-            this.player.hp = p.hp;
-            this.isAlive = p.alive;
-          } else {
-            this.spawnOtherPlayer(id, p.name, p.x, p.y, p.hp);
-          }
-        });
-        // clear cached info to avoid reprocessing
-        this.game.matchInfo = null;
-      }
-
-      // Also handle real-time matchStart if it fires while in GameScene
-      this.socket.on("matchStart", ({ players }) => {
-        Object.entries(players).forEach(([id, p]) => {
-          if (id === this.socket.id) {
-            this.myId = id;
-            this.player.setPosition(p.x, p.y);
-            this.player.hp = p.hp;
-            this.isAlive = p.alive;
-          } else {
-            this.spawnOtherPlayer(id, p.name, p.x, p.y, p.hp);
-          }
-        });
-      });
-
-      this.socket.on("playerMoved", ({ id, x, y }) => {
-        const s = this.otherPlayers[id];
-        if (s) s.setPosition(x, y);
-        if (this.nameTags[id]) this.nameTags[id].setPosition(x, y - 34);
-      });
-
-      this.socket.on("nameUpdate", ({ id, name }) => {
-        if (this.nameTags[id]) this.nameTags[id].setText(name);
-      });
-
-      this.socket.on("playerLeft", ({ id }) => {
-        if (this.otherPlayers[id]) { this.otherPlayers[id].destroy(); delete this.otherPlayers[id]; }
-        if (this.nameTags[id]) { this.nameTags[id].destroy(); delete this.nameTags[id]; }
-        delete this.otherHp[id];
-      });
-
-      this.socket.on("bulletSpawn", ({ id, ownerId, x, y, vx, vy, ttl }) => {
-        // Render authoritative bullets for all players (including self)
-        const key = (this.textures.exists("bullet") && this.textures.get("bullet")?.getSourceImage()?.width > 0)
-          ? "bullet"
-          : "fallback_bullet";
-        if (!this.textures.exists("fallback_bullet")) {
-          const g = this.make.graphics({ x: 0, y: 0, add: false });
-          g.fillStyle(0xffffff, 1);
-          g.fillCircle(8, 8, 6);
-          g.generateTexture("fallback_bullet", 16, 16);
-          g.destroy();
-        }
-        const b = this.physics.add.image(x, y, key);
-        b.body.allowGravity = false;
-        b.setDepth(20);
-        b.setDisplaySize(10, 10);
-        b.body.setSize(8, 8, true);
-        b._vx = vx; b._vy = vy;
-        this.netBullets[id] = b;
-        this.time.delayedCall(ttl * 1000 + 200, () => {
-          if (this.netBullets[id]) { this.netBullets[id].destroy(); delete this.netBullets[id]; }
-        });
-      });
-
-      this.socket.on("bulletDespawn", ({ id }) => {
-        if (this.netBullets[id]) { this.netBullets[id].destroy(); delete this.netBullets[id]; }
-      });
-
-      this.socket.on("hpUpdate", ({ id, hp }) => {
-        if (id === this.socket.id) {
-          this.player.hp = hp;
-        } else {
-          this.otherHp[id] = hp;
-          this.updateOtherHpBar(id);
-        }
-      });
-
-      this.socket.on("eliminated", ({ id, by }) => {
-        if (id === this.socket.id) {
-          this.isAlive = false;
-          this.player.setVisible(false);
-          this.player.body.enable = false;
-          this.elimCause = { by };
-          const killerName = this.getPlayerNameById(by) || "another player";
-          this.showPrompt(`You were eliminated by ${killerName}`);
-        } else if (this.otherPlayers[id]) {
-          this.otherPlayers[id].destroy();
-          delete this.otherPlayers[id];
-          if (this.nameTags[id]) { this.nameTags[id].destroy(); delete this.nameTags[id]; }
-          if (this.otherHpBars[id]) { this.otherHpBars[id].destroy(); delete this.otherHpBars[id]; }
-        }
-      });
-
-      this.socket.on("respawn", ({ id, x, y, hp }) => {
-        if (id === this.socket.id) {
-          this.player.setPosition(x, y);
-          this.player.hp = hp;
-          this.isAlive = true;
-          this.player.setVisible(true);
-          this.player.body.enable = true;
-          this.elimCause = null;
-          this.hidePrompt();
-        } else {
-          const s = this.otherPlayers[id];
-          if (s) {
-            s.setPosition(x, y);
-            s.setVisible(true);
-            s.body.enable = true;
-            if (this.nameTags[id]) {
-              this.nameTags[id].setVisible(true);
-              this.nameTags[id].setPosition(x, y - 34);
-            }
-            this.otherHp[id] = hp;
-            if (this.otherHpBars[id]) this.otherHpBars[id].setVisible(true);
-            this.updateOtherHpBar(id);
-          }
-        }
-      });
-    }
   }
 
   update(time, delta) {
@@ -501,30 +362,6 @@ export class GameScene extends Phaser.Scene {
       if (!this._lastNetMove || time - this._lastNetMove > 50) {
         this._lastNetMove = time;
         net.sendMove(this.player.x, this.player.y);
-      }
-    }
-
-    // move network bullets
-    for (const id in this.netBullets) {
-      const b = this.netBullets[id];
-      if (!b || !b.active) continue;
-      b.x += b._vx * (delta / 1000);
-      b.y += b._vy * (delta / 1000);
-    }
-
-    // send movement only if alive
-    if (this.socket?.connected && this.isAlive) {
-      if (!this._lastNet || time - this._lastNet > 50) {
-        this._lastNet = time;
-        this.socket.emit("move", { x: this.player.x, y: this.player.y });
-      }
-    }
-
-    // send movement to server ~20 fps
-    if (this.socket && this.socket.connected) {
-      if (!this._lastNet || this.time.now - this._lastNet > 50) {
-        this._lastNet = this.time.now;
-        this.socket.emit("move", { x: this.player.x, y: this.player.y });
       }
     }
 
@@ -604,18 +441,17 @@ export class GameScene extends Phaser.Scene {
 
     const dir = this.getAimDirection();
 
-    // Spawn position slightly in front of player (for server to use)
+    // Spawn position slightly in front of player
     const muzzle = 26;
     const sx = this.player.x + dir.x * muzzle;
     const sy = this.player.y + dir.y * muzzle;
 
-    // Do not spawn local bullet; render authoritative server bullets instead
-    // notify server about shot (authoritative simulation)
-    if (this.socket?.connected && this.isAlive) {
-      this.socket.emit("shoot", { x: sx, y: sy, dx: dir.x, dy: dir.y, t: Date.now() });
+    // Fire local bullet and send to server
+    this.fireBullet(sx, sy, dir, this.player.weapon);
+    
+    if (net.room) {
+      net.room.send("shoot", { x: sx, y: sy, dx: dir.x, dy: dir.y });
     }
-
-    // (debug text on fire removed per request)
   }
 
   fireBullet(x, y, dir, weapon) {

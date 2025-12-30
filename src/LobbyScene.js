@@ -1,3 +1,5 @@
+import { net } from "./net.js";
+
 export class LobbyScene extends Phaser.Scene {
   constructor() { super("LobbyScene"); }
 
@@ -11,7 +13,7 @@ export class LobbyScene extends Phaser.Scene {
       fontFamily: "monospace", fontSize: "42px", color: "#ffffff"
     }).setOrigin(0.5);
 
-    this.status = this.add.text(cx, cy - 40, "Connecting...", {
+    this.status = this.add.text(cx, cy - 40, "Waiting for match to start...", {
       fontFamily: "monospace", fontSize: "18px", color: "#b7c5ff"
     }).setOrigin(0.5);
 
@@ -26,52 +28,25 @@ export class LobbyScene extends Phaser.Scene {
 
     this.ready = false;
 
-    const socket = this.game.socket;
-
-    // Connection status helpers
-    if (!socket) {
-      this.status.setText("Socket not initialized. Go back and Start.");
-    } else {
-      if (socket.connected) {
-        this.status.setText("Connected. Waiting for players...");
-      } else {
-        this.status.setText("Connecting to server...");
-      }
-
-      socket.on("connect", () => {
-        this.status.setText("Connected. Waiting for players...");
-      });
-      socket.on("connect_error", () => {
-        this.status.setText("Cannot connect. Is server running on :3000?");
-      });
-      socket.on("disconnect", () => {
-        this.status.setText("Disconnected from server.");
-      });
-    }
-
     this.readyBtn.on("pointerdown", () => {
       this.ready = !this.ready;
       this.readyBtn.setText(this.ready ? "READY ✅" : "READY");
-      socket.emit("ready", { ready: this.ready });
-    });
-
-    socket.on("serverFull", () => {
-      this.status.setText("Server is full (max 2 players).");
-      this.readyBtn.disableInteractive();
-    });
-
-    socket.on("lobbyState", ({ matchState, players, count, max }) => {
-      if (matchState === "LOBBY") {
-        this.status.setText(`Waiting for ${max} players... (${count}/${max})`);
+      if (net.room) {
+        net.room.send("ready", { ready: this.ready });
       }
-
-      const lines = players.map(p => `${p.name}${p.ready ? " ✅" : ""}`);
-      this.list.setText(lines.join("\n") || "(no players)");
     });
 
-    socket.on("matchStart", (payload) => {
-      // Cache match info so GameScene can initialize even if the event fired earlier
-      this.game.matchInfo = payload;
+    // Monitor room state changes
+    if (net.room) {
+      net.room.onStateChange(() => {
+        // Update player list from net.players
+        const lines = Array.from(net.players.values()).map(p => p.name);
+        this.list.setText(lines.join("\n") || "(waiting for players)");
+      });
+    }
+
+    // Auto-start game after a delay (simulating match start)
+    this.time.delayedCall(3000, () => {
       this.scene.start("WaitingScene");
     });
   }
