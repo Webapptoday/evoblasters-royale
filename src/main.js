@@ -7,11 +7,10 @@ import { net } from "./net.js";
 // Connect to network on startup
 (async () => {
   try {
-    let name = localStorage.getItem("playerName");
-    if (!name) {
-      name = prompt("Enter your name:");
-      if (name) localStorage.setItem("playerName", name);
-    }
+    let name =
+      localStorage.getItem("playerName") ||
+      `Player${Math.floor(Math.random() * 10000)}`;
+    localStorage.setItem("playerName", name);
     await net.connect(name || "Player");
   } catch (error) {
     console.error("Failed to connect to server:", error);
