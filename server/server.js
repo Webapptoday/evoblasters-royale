@@ -1,4 +1,5 @@
 // Redeploy trigger - Railway will auto-detect and redeploy
+// Socket.IO removed, using Colyseus instead
 const http = require("http");
 const express = require("express");
 const { Server } = require("colyseus");
