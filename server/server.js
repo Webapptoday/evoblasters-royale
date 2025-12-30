@@ -1,3 +1,4 @@
+// Redeploy trigger - Railway will auto-detect and redeploy
 const http = require("http");
 const express = require("express");
 const { Server } = require("colyseus");
