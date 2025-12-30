@@ -1,5 +1,5 @@
 // Colyseus is loaded from CDN in index.html
-const ENDPOINT = "wss://evoblasters-server-production.up.railway.app";
+const ENDPOINT = "https://evoblasters-server-production.up.railway.app";
 
 export const net = {
   client: null,
