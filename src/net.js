@@ -8,33 +8,46 @@ export const net = {
   players: new Map(),
 
   async connect(playerName = "Player") {
-    this.client = new Colyseus.Client(ENDPOINT);
+    try {
+      console.log("Connecting to Colyseus server…");
 
-    this.room = await this.client.joinOrCreate("battle");
-    this.sessionId = this.room.sessionId;
+      this.client = new Colyseus.Client(ENDPOINT);
 
-    this.room.send("set_name", { name: playerName });
+      this.room = await this.client.joinOrCreate("battle", {
+        name: playerName,
+      });
 
-    this.room.onStateChange((state) => {
-      this.players.clear();
-      state.players.forEach((p, id) => {
-        this.players.set(id, {
-          x: p.x,
-          y: p.y,
-          hp: p.hp,
-          alive: p.alive,
-          name: p.name,
+      this.sessionId = this.room.sessionId;
+
+      console.log("Joined room:", this.room.name, this.sessionId);
+
+      this.room.onStateChange((state) => {
+        this.players.clear();
+        state.players.forEach((p, id) => {
+          this.players.set(id, {
+            x: p.x,
+            y: p.y,
+            hp: p.hp,
+            alive: p.alive,
+            name: p.name,
+          });
         });
       });
-    });
 
-    this.room.onLeave(() => {
-      console.warn("Left room");
-      this.room = null;
-    });
+      this.room.onLeave((code) => {
+        console.warn("Left room, code:", code);
+        this.room = null;
+      });
 
-    console.log("Connected!", this.sessionId);
-    return this.room;
+      this.room.onError((code, message) => {
+        console.error("Room error:", code, message);
+      });
+
+      return this.room;
+    } catch (err) {
+      console.error("FAILED to connect to Colyseus:", err);
+      throw err;
+    }
   },
 
   sendMove(x, y) {
