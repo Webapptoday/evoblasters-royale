@@ -1,5 +1,4 @@
-import { Client } from "colyseus.js";
-
+// Colyseus is loaded from CDN in index.html
 const ENDPOINT = "wss://evoblasters-server-production.up.railway.app";
 
 export const net = {
@@ -9,7 +8,7 @@ export const net = {
   players: new Map(),
 
   async connect(playerName = "Player") {
-    this.client = new Client(ENDPOINT);
+    this.client = new Colyseus.Client(ENDPOINT);
 
     // joins or creates the "battle" room (matches server: define("battle", ...))
     this.room = await this.client.joinOrCreate("battle");
