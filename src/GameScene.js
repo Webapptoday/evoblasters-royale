@@ -32,8 +32,8 @@ export class GameScene extends Phaser.Scene {
     this.load.image("chest", "treasure.png");
     this.load.image("potion", "potion.png");
 
-    // gun icon for inventory
-    this.load.image("gunIcon", "basicblaster.png");
+    // gun icon for inventory - TODO: add basicblaster.png to root
+    // this.load.image("gunIcon", "basicblaster.png");
 
     // Log any loader errors to the console for quick diagnosis
     this.load.on("loaderror", (file) => {
