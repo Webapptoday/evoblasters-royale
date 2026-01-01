@@ -541,8 +541,39 @@ export class GameScene extends Phaser.Scene {
 
     this.bullets.add(b);
 
+    // ✅ Check for hits on remote players every 50ms
+    const hitCheckInterval = this.time.addEvent({
+      delay: 50,
+      loop: true,
+      callback: () => {
+        if (!b || !b.active) {
+          hitCheckInterval.remove();
+          return;
+        }
+
+        // Check each remote player sprite for collision
+        for (const [playerId, remoteSpr] of this.remoteSprites.entries()) {
+          if (!remoteSpr || !remoteSpr.active) continue;
+
+          const dist = Phaser.Math.Distance.Between(b.x, b.y, remoteSpr.x, remoteSpr.y);
+          if (dist < 25) {
+            // HIT!
+            console.log("[fireBullet] Hit player", playerId, "sending to server");
+            if (net.room) {
+              net.room.send("hit", { targetId: playerId, dmg: weapon.damage || 10 });
+            }
+            if (b && b.active) b.destroy();
+            hitCheckInterval.remove();
+            return;
+          }
+        }
+      }
+    });
+
+    // Despawn after 1200ms if not hit
     this.time.delayedCall(1200, () => {
       if (b && b.active) b.destroy();
+      if (hitCheckInterval) hitCheckInterval.remove();
     });
 
     return b; // ✅ critical
