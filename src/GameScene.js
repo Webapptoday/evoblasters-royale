@@ -166,6 +166,19 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
+    // ✅ Listen for other players' shots
+    if (net.room && !this._wiredShots) {
+      this._wiredShots = true;
+
+      net.room.onMessage("shot", (msg) => {
+        // don't double-spawn your own (you already spawn locally)
+        if (msg.fromId === net.sessionId) return;
+
+        const dir = new Phaser.Math.Vector2(msg.dx, msg.dy).normalize();
+        this.fireBullet(msg.x, msg.y, dir, this.player.weapon);
+      });
+    }
+
     // Safe zone
     this.safeCenter = new Phaser.Math.Vector2(WORLD_W / 2, WORLD_H / 2);
     this.safeRadius = START_SAFE_RADIUS;
