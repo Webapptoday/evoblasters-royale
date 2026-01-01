@@ -1,6 +1,8 @@
 import { getWeaponByLevel } from "./WeaponSystem.js";
 import { net } from "./net.js";
 
+window.net = net; // ✅ expose net to browser console for debugging
+
 const WORLD_W = 2600;
 const WORLD_H = 1800;
 
