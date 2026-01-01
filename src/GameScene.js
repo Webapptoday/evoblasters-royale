@@ -163,11 +163,20 @@ export class GameScene extends Phaser.Scene {
           spr.y = p.y;
         }
 
-        // Remove sprites for players who left
+        // Remove sprites for players who left (only after they've been gone for 2+ ticks)
         for (const [id, spr] of this.remoteSprites.entries()) {
           if (!net.players.has(id)) {
-            spr.destroy();
-            this.remoteSprites.delete(id);
+            // Mark for deletion but give it 100ms grace period
+            if (!spr._deleteTime) {
+              spr._deleteTime = this.time.now;
+            } else if (this.time.now - spr._deleteTime > 100) {
+              console.log("[GameScene] Destroying sprite for left player:", id);
+              spr.destroy();
+              this.remoteSprites.delete(id);
+            }
+          } else {
+            // Player is back, cancel deletion
+            spr._deleteTime = null;
           }
         }
       }
