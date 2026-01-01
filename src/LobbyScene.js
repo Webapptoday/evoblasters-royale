@@ -21,21 +21,7 @@ export class LobbyScene extends Phaser.Scene {
       fontFamily: "monospace", fontSize: "18px", color: "#ffffff", align: "center"
     }).setOrigin(0.5);
 
-    this.readyBtn = this.add.text(cx, cy + 120, "READY", {
-      fontFamily: "monospace", fontSize: "26px", color: "#ffffff",
-      backgroundColor: "rgba(0,0,0,0.55)", padding: { left: 18, right: 18, top: 10, bottom: 10 }
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-    this.ready = false;
-
-    this.readyBtn.on("pointerdown", () => {
-      this.ready = !this.ready;
-      this.readyBtn.setText(this.ready ? "READY ✅" : "READY");
-      if (net.room) {
-        net.room.send("ready", { ready: this.ready });
-      }
-    });
-
+    // ✅ Wait for 2 players to join, then auto-start (no ready button)
     // Monitor room state changes
     if (net.room) {
       net.room.onStateChange(() => {
@@ -46,12 +32,11 @@ export class LobbyScene extends Phaser.Scene {
       });
     }
 
-    // Auto-start game only when 2+ players are ready (not after fixed time)
+    // Auto-start game only when 2+ players have joined
     this.checkReadyInterval = this.time.addEvent({
       delay: 500,
       loop: true,
       callback: () => {
-        // Start only if 2+ players and both have been in room for a moment
         if (net.players.size >= 2) {
           console.log("[LobbyScene] 2+ players detected, starting game...");
           this.checkReadyInterval.remove();
