@@ -1,5 +1,7 @@
 // Colyseus is loaded from CDN in index.html
-const ENDPOINT = "https://evoblasters-server-production.up.railway.app";
+const ENDPOINT = "wss://evoblasters-server-production.up.railway.app";
+
+let connectingPromise = null;
 
 export const net = {
   client: null,
@@ -8,20 +10,34 @@ export const net = {
   players: new Map(),
 
   async connect(playerName = "Player") {
-    try {
-      console.log("Connecting to Colyseus server…");
+    // ✅ prevent double connect
+    if (this.room) {
+      console.warn("Already connected, reusing room");
+      return this.room;
+    }
 
-      this.client = new Colyseus.Client(ENDPOINT);
+    if (connectingPromise) {
+      return connectingPromise;
+    }
 
-      this.room = await this.client.joinOrCreate("battle", {
-        name: playerName,
-      });
+    connectingPromise = (async () => {
+      console.log("Connecting to Colyseus…");
 
-      this.sessionId = this.room.sessionId;
+      // ✅ create client ONCE
+      if (!this.client) {
+        this.client = new Colyseus.Client(ENDPOINT);
+      }
 
-      console.log("Joined room:", this.room.name, this.sessionId);
+      const room = await this.client.joinOrCreate("battle");
+      this.room = room;
+      this.sessionId = room.sessionId;
 
-      this.room.onStateChange((state) => {
+      console.log("Joined room:", room.name, this.sessionId);
+
+      // ✅ send name AFTER join
+      room.send("set_name", { name: playerName });
+
+      room.onStateChange((state) => {
         this.players.clear();
         state.players.forEach((p, id) => {
           this.players.set(id, {
@@ -34,20 +50,20 @@ export const net = {
         });
       });
 
-      this.room.onLeave((code) => {
+      room.onLeave((code) => {
         console.warn("Left room, code:", code);
         this.room = null;
+        connectingPromise = null;
       });
 
-      this.room.onError((code, message) => {
+      room.onError((code, message) => {
         console.error("Room error:", code, message);
       });
 
-      return this.room;
-    } catch (err) {
-      console.error("FAILED to connect to Colyseus:", err);
-      throw err;
-    }
+      return room;
+    })();
+
+    return connectingPromise;
   },
 
   sendMove(x, y) {
