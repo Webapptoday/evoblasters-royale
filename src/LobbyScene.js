@@ -42,12 +42,22 @@ export class LobbyScene extends Phaser.Scene {
         // Update player list from net.players
         const lines = Array.from(net.players.values()).map(p => p.name);
         this.list.setText(lines.join("\n") || "(waiting for players)");
+        console.log("[LobbyScene] Players in room:", net.players.size);
       });
     }
 
-    // Auto-start game after a delay (simulating match start)
-    this.time.delayedCall(3000, () => {
-      this.scene.start("WaitingScene");
+    // Auto-start game only when 2+ players are ready (not after fixed time)
+    this.checkReadyInterval = this.time.addEvent({
+      delay: 500,
+      loop: true,
+      callback: () => {
+        // Start only if 2+ players and both have been in room for a moment
+        if (net.players.size >= 2) {
+          console.log("[LobbyScene] 2+ players detected, starting game...");
+          this.checkReadyInterval.remove();
+          this.scene.start("WaitingScene");
+        }
+      }
     });
   }
 }
