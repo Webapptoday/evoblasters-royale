@@ -174,39 +174,26 @@ export class GameScene extends Phaser.Scene {
     });
 
     // ✅ Listen for shots (spawn bullets for EVERYONE + show hits)
-    this._wiredShots = false;
+    console.log("[GameScene] Registering shot listener callback...");
+    net.registerShotListener((msg) => {
+      console.log("[GameScene] Shot callback fired with:", msg);
+      const dir = new Phaser.Math.Vector2(msg.dx, msg.dy).normalize();
 
-    this.time.addEvent({
-      delay: 50,
-      loop: true,
-      callback: () => {
-        if (this._wiredShots) return;
-        if (!net.room) return;
+      // Spawn bullet visuals for everyone (including you)
+      const b = this.fireBullet(msg.x, msg.y, dir, this.player.weapon);
 
-        this._wiredShots = true;
-        console.log("[GameScene] Wiring shot listener...");
-
-        net.room.onMessage("shot", (msg) => {
-          console.log("[GameScene] Received shot event:", msg);
-          const dir = new Phaser.Math.Vector2(msg.dx, msg.dy).normalize();
-
-          // Spawn bullet visuals for everyone (including you)
-          const b = this.fireBullet(msg.x, msg.y, dir, this.player.weapon);
-
-          // If server says it hit someone, end bullet early (visual)
-          if (msg.hitId && b) {
-            this.time.delayedCall(60, () => {
-              if (b && b.active) b.destroy();
-            });
-
-            // flash the hit player if we have their sprite
-            const targetSpr = this.remoteSprites.get(msg.hitId);
-            if (targetSpr) {
-              targetSpr.setAlpha(0.3);
-              this.time.delayedCall(80, () => targetSpr.setAlpha(1));
-            }
-          }
+      // If server says it hit someone, end bullet early (visual)
+      if (msg.hitId && b) {
+        this.time.delayedCall(60, () => {
+          if (b && b.active) b.destroy();
         });
+
+        // flash the hit player if we have their sprite
+        const targetSpr = this.remoteSprites.get(msg.hitId);
+        if (targetSpr) {
+          targetSpr.setAlpha(0.3);
+          this.time.delayedCall(80, () => targetSpr.setAlpha(1));
+        }
       }
     });
 

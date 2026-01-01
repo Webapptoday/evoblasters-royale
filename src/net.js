@@ -8,6 +8,12 @@ export const net = {
   room: null,
   sessionId: null,
   players: new Map(),
+  onShotCallbacks: [], // ✅ list of handlers for shot events
+
+  registerShotListener(callback) {
+    this.onShotCallbacks.push(callback);
+    console.log("[net.js] Registered shot listener, total:", this.onShotCallbacks.length);
+  },
 
   async connect(playerName = "Player") {
     // ✅ prevent double connect
@@ -36,6 +42,19 @@ export const net = {
 
       // ✅ send name AFTER join
       room.send("set_name", { name: playerName });
+
+      // ✅ Wire shot listener IMMEDIATELY when room joins
+      room.onMessage("shot", (msg) => {
+        console.log("[net.js] Shot event received on room:", msg);
+        // Call all registered listeners
+        this.onShotCallbacks.forEach(cb => {
+          try {
+            cb(msg);
+          } catch (err) {
+            console.error("[net.js] Error in shot callback:", err);
+          }
+        });
+      });
 
       room.onStateChange((state) => {
         console.log("[net.js] Room state changed, players count:", state.players.size);
