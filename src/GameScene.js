@@ -141,7 +141,7 @@ export class GameScene extends Phaser.Scene {
 
         // Create/update sprites for every player in state
         for (const [id, p] of net.players.entries()) {
-          if (id === net.sessionId) continue; // ✅ don't create a remote sprite for yourself
+          if (net.sessionId && id === net.sessionId) continue; // ✅ don't create a remote sprite for yourself
           let spr = this.remoteSprites.get(id);
           if (!spr) {
             // Create sprite for remote player (use same color as other players in your game)
@@ -167,31 +167,39 @@ export class GameScene extends Phaser.Scene {
     });
 
     // ✅ Listen for shots (spawn bullets for EVERYONE + show hits)
-    if (net.room && !this._wiredShots) {
-      this._wiredShots = true;
+    this._wiredShots = false;
 
-      net.room.onMessage("shot", (msg) => {
-        const dir = new Phaser.Math.Vector2(msg.dx, msg.dy).normalize();
+    this.time.addEvent({
+      delay: 50,
+      loop: true,
+      callback: () => {
+        if (this._wiredShots) return;
+        if (!net.room) return;
 
-        // spawn a visual bullet for EVERYONE (including your own)
-        const b = this.fireBullet(msg.x, msg.y, dir, this.player.weapon);
+        this._wiredShots = true;
 
-        // if server says it hit someone, end bullet early so it doesn't "pass through"
-        if (msg.hitId) {
-          const target = this.remoteSprites.get(msg.hitId);
-          if (target) {
-            // stop bullet near the target quickly (visual only)
+        net.room.onMessage("shot", (msg) => {
+          const dir = new Phaser.Math.Vector2(msg.dx, msg.dy).normalize();
+
+          // Spawn bullet visuals for everyone (including you)
+          const b = this.fireBullet(msg.x, msg.y, dir, this.player.weapon);
+
+          // If server says it hit someone, end bullet early (visual)
+          if (msg.hitId && b) {
             this.time.delayedCall(60, () => {
               if (b && b.active) b.destroy();
             });
 
-            // optional hit flash
-            target.setAlpha(0.3);
-            this.time.delayedCall(80, () => target.setAlpha(1));
+            // flash the hit player if we have their sprite
+            const targetSpr = this.remoteSprites.get(msg.hitId);
+            if (targetSpr) {
+              targetSpr.setAlpha(0.3);
+              this.time.delayedCall(80, () => targetSpr.setAlpha(1));
+            }
           }
-        }
-      });
-    }
+        });
+      }
+    });
 
     // Safe zone
     this.safeCenter = new Phaser.Math.Vector2(WORLD_W / 2, WORLD_H / 2);
@@ -489,7 +497,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   fireBullet(x, y, dir, weapon) {
-    // Create a guaranteed visible fallback texture once
     const fallbackKey = "fallback_bullet";
     if (!this.textures.exists(fallbackKey)) {
       const g = this.make.graphics({ x: 0, y: 0, add: false });
@@ -499,7 +506,6 @@ export class GameScene extends Phaser.Scene {
       g.destroy();
     }
 
-    // Only use bullet.png if it actually loaded a source image
     const tex = this.textures.get("bullet");
     const hasRealBullet =
       tex &&
@@ -513,26 +519,25 @@ export class GameScene extends Phaser.Scene {
     b.setDepth(20);
     b.body.allowGravity = false;
 
-    // Small but clearly visible
     b.setDisplaySize(14, 14);
     b.body.setSize(10, 10, true);
     b.setAlpha(1);
-    b.setTint(0xffff00); // bright yellow for visibility
+    b.setTint(0xffff00);
 
     const speed = weapon.bulletSpeed;
-
-    // Force velocity so it never stays still
     b.setVelocity(dir.x * speed, dir.y * speed);
+
     this.time.delayedCall(0, () => {
       if (b && b.active) b.setVelocity(dir.x * speed, dir.y * speed);
     });
 
     this.bullets.add(b);
 
-    // Despawn
     this.time.delayedCall(1200, () => {
       if (b && b.active) b.destroy();
     });
+
+    return b; // ✅ critical
   }
 
   // ---- Multiplayer helpers ----
