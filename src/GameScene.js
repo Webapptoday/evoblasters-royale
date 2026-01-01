@@ -206,6 +206,21 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
+    // ✅ Listen for hit results from server
+    if (net.room) {
+      net.room.onMessage("hit_result", (msg) => {
+        console.log("[GameScene] Hit result:", msg);
+        const targetSpr = this.remoteSprites.get(msg.targetId);
+        if (targetSpr && msg.newHp <= 0) {
+          // Visual death effect
+          targetSpr.setTint(0xff0000);
+          this.time.delayedCall(100, () => {
+            if (targetSpr && targetSpr.active) targetSpr.setTint(0xffffff);
+          });
+        }
+      });
+    }
+
     // Safe zone
     this.safeCenter = new Phaser.Math.Vector2(WORLD_W / 2, WORLD_H / 2);
     this.safeRadius = START_SAFE_RADIUS;
@@ -558,9 +573,12 @@ export class GameScene extends Phaser.Scene {
           const dist = Phaser.Math.Distance.Between(b.x, b.y, remoteSpr.x, remoteSpr.y);
           if (dist < 25) {
             // HIT!
-            console.log("[fireBullet] Hit player", playerId, "sending to server");
+            console.log("[fireBullet] HIT DETECTED! Player", playerId, "dist:", dist, "weapon.damage:", weapon.damage);
             if (net.room) {
+              console.log("[fireBullet] Sending HIT message to server");
               net.room.send("hit", { targetId: playerId, dmg: weapon.damage || 10 });
+            } else {
+              console.warn("[fireBullet] net.room not ready, can't send hit");
             }
             if (b && b.active) b.destroy();
             hitCheckInterval.remove();

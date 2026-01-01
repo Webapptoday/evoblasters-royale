@@ -37,8 +37,9 @@ export class LobbyScene extends Phaser.Scene {
       delay: 500,
       loop: true,
       callback: () => {
+        console.log("[LobbyScene] Checking: players.size=", net.players.size);
         if (net.players.size >= 2) {
-          console.log("[LobbyScene] 2+ players detected, starting game...");
+          console.log("[LobbyScene] ✅ 2+ players detected, starting game...");
           this.checkReadyInterval.remove();
           this.scene.start("WaitingScene");
         }
