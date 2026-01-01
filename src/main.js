@@ -4,6 +4,8 @@ import { WaitingScene } from "./WaitingScene.js";
 import { GameScene } from "./GameScene.js";
 import { net } from "./net.js";
 
+window.net = net; // ✅ expose net to browser console for debugging
+
 // Connect to network on startup
 // DISABLED: net.connect() is now called when START button is clicked
 // (async () => {
