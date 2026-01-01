@@ -73,13 +73,14 @@ export const net = {
       });
 
       room.onLeave((code) => {
-        console.warn("Left room, code:", code);
+        console.warn("[net.js] Left room, code:", code);
+        console.warn("[net.js] Code explanations: 1000=normal, 4000=abnormal, 4002=client disconnect");
         this.room = null;
         connectingPromise = null;
       });
 
       room.onError((code, message) => {
-        console.error("Room error:", code, message);
+        console.error("[net.js] Room error code:", code, "message:", message);
       });
 
       return room;
