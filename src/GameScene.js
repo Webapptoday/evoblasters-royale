@@ -177,8 +177,10 @@ export class GameScene extends Phaser.Scene {
         if (!net.room) return;
 
         this._wiredShots = true;
+        console.log("[GameScene] Wiring shot listener...");
 
         net.room.onMessage("shot", (msg) => {
+          console.log("[GameScene] Received shot event:", msg);
           const dir = new Phaser.Math.Vector2(msg.dx, msg.dy).normalize();
 
           // Spawn bullet visuals for everyone (including you)
@@ -492,7 +494,10 @@ export class GameScene extends Phaser.Scene {
 
     // Send to server (server will broadcast "shot" event for all clients)
     if (net.room) {
+      console.log("[tryFireBullet] Sending shoot to server:", { sx, sy, dx: dir.x, dy: dir.y });
       net.room.send("shoot", { x: sx, y: sy, dx: dir.x, dy: dir.y });
+    } else {
+      console.warn("[tryFireBullet] net.room not ready");
     }
   }
 
