@@ -4,7 +4,13 @@ import { WaitingScene } from "./WaitingScene.js";
 import { GameScene } from "./GameScene.js";
 import { net } from "./net.js";
 
-window.net = net; // ✅ expose net to browser console for debugging
+// ✅ Set global net reference at startup (before Phaser initializes)
+window.net = net;
+
+// Debug logging
+console.log("[BOOT] window.net set:", !!window.net);
+console.log("[BOOT] net keys:", Object.keys(window.net || {}));
+console.log("[BOOT] Colyseus available:", typeof Colyseus !== "undefined");
 
 // Connect to network on startup
 // DISABLED: net.connect() is now called when START button is clicked
