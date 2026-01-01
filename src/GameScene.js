@@ -131,8 +131,17 @@ export class GameScene extends Phaser.Scene {
         if (!net.room) return;
         this.myId = net.sessionId;
 
+        // ✅ one-time snap to server spawn position
+        if (!this._snappedToServer && net.players.has(net.sessionId)) {
+          const me = net.players.get(net.sessionId);
+          this.player.x = me.x;
+          this.player.y = me.y;
+          this._snappedToServer = true;
+        }
+
         // Create/update sprites for every player in state
         for (const [id, p] of net.players.entries()) {
+          if (id === net.sessionId) continue; // ✅ don't create a remote sprite for yourself
           let spr = this.remoteSprites.get(id);
           if (!spr) {
             // Create sprite for remote player (use same color as other players in your game)
