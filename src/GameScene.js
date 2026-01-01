@@ -137,13 +137,19 @@ export class GameScene extends Phaser.Scene {
           this.player.x = me.x;
           this.player.y = me.y;
           this._snappedToServer = true;
+          console.log("[GameScene] Snapped to server spawn:", { x: me.x, y: me.y });
         }
 
         // Create/update sprites for every player in state
+        if (net.players.size > 0) {
+          console.log("[GameScene] Remote player loop - net.players.size:", net.players.size, "remoteSprites:", this.remoteSprites.size);
+        }
         for (const [id, p] of net.players.entries()) {
           if (net.sessionId && id === net.sessionId) continue; // ✅ don't create a remote sprite for yourself
+          console.log("[GameScene] Processing remote player:", id, { x: p.x, y: p.y, alive: p.alive });
           let spr = this.remoteSprites.get(id);
           if (!spr) {
+            console.log("[GameScene] Creating sprite for remote player:", id, { x: p.x, y: p.y });
             // Create sprite for remote player (use same color as other players in your game)
             spr = this.physics.add.image(p.x, p.y, this.makeCircleTexture(0xff6e6e));
             spr.setCircle(16);
@@ -151,6 +157,7 @@ export class GameScene extends Phaser.Scene {
             spr.setImmovable(true);
             spr.setDepth(2);
             this.remoteSprites.set(id, spr);
+            console.log("[GameScene] Sprite created, total remoteSprites:", this.remoteSprites.size);
           }
           spr.x = p.x;
           spr.y = p.y;

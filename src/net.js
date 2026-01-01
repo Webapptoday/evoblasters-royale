@@ -38,8 +38,10 @@ export const net = {
       room.send("set_name", { name: playerName });
 
       room.onStateChange((state) => {
+        console.log("[net.js] Room state changed, players count:", state.players.size);
         this.players.clear();
         state.players.forEach((p, id) => {
+          console.log("[net.js] Player in state:", id, { x: p.x, y: p.y, hp: p.hp, alive: p.alive, name: p.name });
           this.players.set(id, {
             x: p.x,
             y: p.y,
@@ -48,6 +50,7 @@ export const net = {
             name: p.name,
           });
         });
+        console.log("[net.js] Total players in net.players:", this.players.size);
       });
 
       room.onLeave((code) => {
