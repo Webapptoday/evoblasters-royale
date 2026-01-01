@@ -166,16 +166,30 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    // ✅ Listen for other players' shots
+    // ✅ Listen for shots (spawn bullets for EVERYONE + show hits)
     if (net.room && !this._wiredShots) {
       this._wiredShots = true;
 
       net.room.onMessage("shot", (msg) => {
-        // don't double-spawn your own (you already spawn locally)
-        if (msg.fromId === net.sessionId) return;
-
         const dir = new Phaser.Math.Vector2(msg.dx, msg.dy).normalize();
-        this.fireBullet(msg.x, msg.y, dir, this.player.weapon);
+
+        // spawn a visual bullet for EVERYONE (including your own)
+        const b = this.fireBullet(msg.x, msg.y, dir, this.player.weapon);
+
+        // if server says it hit someone, end bullet early so it doesn't "pass through"
+        if (msg.hitId) {
+          const target = this.remoteSprites.get(msg.hitId);
+          if (target) {
+            // stop bullet near the target quickly (visual only)
+            this.time.delayedCall(60, () => {
+              if (b && b.active) b.destroy();
+            });
+
+            // optional hit flash
+            target.setAlpha(0.3);
+            this.time.delayedCall(80, () => target.setAlpha(1));
+          }
+        }
       });
     }
 
@@ -468,9 +482,7 @@ export class GameScene extends Phaser.Scene {
     const sx = this.player.x + dir.x * muzzle;
     const sy = this.player.y + dir.y * muzzle;
 
-    // Fire local bullet and send to server
-    this.fireBullet(sx, sy, dir, this.player.weapon);
-    
+    // Send to server (server will broadcast "shot" event for all clients)
     if (net.room) {
       net.room.send("shoot", { x: sx, y: sy, dx: dir.x, dy: dir.y });
     }
