@@ -34,7 +34,7 @@ export const net = {
         this.client = new Colyseus.Client(ENDPOINT);
       }
 
-      const room = await this.client.joinOrCreate("battle");
+      const room = await this.client.joinOrCreate("battle", { roomId: "global" });
       this.room = room;
       this.sessionId = room.sessionId;
 
