@@ -52,7 +52,17 @@ export const net = {
         console.log("[net.js] ✅ MATCH FOUND!", msg);
         const { matchId, opponent, opponentId } = msg;
 
-        // Step 2: Join the battle room
+        // ✅ CRITICAL: Send acceptance before joining battle room
+        console.log("[net.js] Accepting match:", matchId);
+        matchRoom.send("match_accepted", { matchId });
+      });
+
+      // ✅ Listen for game_start (only after both players accept)
+      matchRoom.onMessage("game_start", async (msg) => {
+        console.log("[net.js] Game start approved by server!");
+        const { matchId } = msg;
+
+        // Now join the battle room
         console.log("[net.js] Joining battle room:", matchId);
         const battleRoom = await this.client.join("battle", { 
           sessionId: this.sessionId,
@@ -61,7 +71,7 @@ export const net = {
         });
         
         this.battleRoom = battleRoom;
-        this.room = battleRoom; // ✅ Switch to battle room as active
+        this.room = battleRoom;
         
         console.log("[net.js] Joined battle room:", battleRoom.name);
 
