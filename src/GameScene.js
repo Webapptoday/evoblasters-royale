@@ -122,6 +122,9 @@ export class GameScene extends Phaser.Scene {
     // ---------- Network/Remote Players ----------
     this.remoteSprites = new Map();
     this.myId = null;
+    this.otherHp = {}; // ✅ Track HP for each remote player
+    this.otherHpBars = {}; // ✅ Track HP bar graphics for each remote player
+    this.otherPlayers = {}; // ✅ Track other player references
 
     // Update remote player positions every 50ms
     this.time.addEvent({
@@ -146,7 +149,7 @@ export class GameScene extends Phaser.Scene {
         }
         for (const [id, p] of net.players.entries()) {
           if (net.sessionId && id === net.sessionId) continue; // ✅ don't create a remote sprite for yourself
-          console.log("[GameScene] Processing remote player:", id, { x: p.x, y: p.y, alive: p.alive });
+          console.log("[GameScene] Processing remote player:", id, { x: p.x, y: p.y, alive: p.alive, hp: p.hp });
           let spr = this.remoteSprites.get(id);
           if (!spr) {
             console.log("[GameScene] Creating sprite for remote player:", id, { x: p.x, y: p.y });
@@ -157,10 +160,26 @@ export class GameScene extends Phaser.Scene {
             spr.setImmovable(true);
             spr.setDepth(2);
             this.remoteSprites.set(id, spr);
+            this.otherPlayers[id] = spr; // ✅ Track in otherPlayers
+            this.otherHp[id] = p.hp; // ✅ Initialize HP
+            
+            // ✅ Create HP bar graphics
+            if (!this.otherHpBars[id]) {
+              this.otherHpBars[id] = this.add.graphics().setDepth(15);
+            }
+            
             console.log("[GameScene] Sprite created, total remoteSprites:", this.remoteSprites.size);
           }
           spr.x = p.x;
           spr.y = p.y;
+          this.otherPlayers[id] = spr; // ✅ Keep updated
+          
+          // ✅ Update HP from server state
+          if (this.otherHp[id] !== p.hp) {
+            this.otherHp[id] = p.hp;
+            this.updateOtherHpBar(id);
+            console.log("[GameScene] Updated HP for player", id, 'to', p.hp);
+          }
         }
 
         // Remove sprites for players who left (only after they've been gone for 2+ ticks)
