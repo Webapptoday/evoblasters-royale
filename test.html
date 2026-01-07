@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Evo Blast Royale - Diagnostic Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #050a18;
+            color: #ffffff;
+            font-family: monospace;
+        }
+        .log {
+            background: #000;
+            padding: 15px;
+            border: 2px solid #0f0;
+            margin: 10px 0;
+            min-height: 200px;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+        .success { color: #0f0; }
+        .error { color: #f00; }
+        .info { color: #0ff; }
+    </style>
+</head>
+<body>
+    <h1>Evo Blast Royale - Diagnostic Test</h1>
+    <div class="log" id="log"></div>
+    
+    <script>
+        const log = document.getElementById('log');
+        
+        function addLog(msg, type = 'info') {
+            const span = document.createElement('div');
+            span.className = type;
+            span.textContent = new Date().toLocaleTimeString() + ' - ' + msg;
+            log.appendChild(span);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        addLog('Starting diagnostic tests...', 'info');
+        
+        // Test 1: Check window size
+        addLog(`Window size: ${window.innerWidth} x ${window.innerHeight}`, 'info');
+        
+        // Test 2: Check if Phaser is available
+        if (typeof Phaser !== 'undefined') {
+            addLog('✓ Phaser library loaded', 'success');
+        } else {
+            addLog('✗ Phaser library NOT loaded', 'error');
+        }
+        
+        // Test 3: Check if Colyseus is available
+        if (typeof Colyseus !== 'undefined') {
+            addLog('✓ Colyseus library loaded', 'success');
+        } else {
+            addLog('✗ Colyseus library NOT loaded', 'error');
+        }
+        
+        // Test 4: Try to load main.js
+        addLog('Attempting to load main.js...', 'info');
+        
+        const script = document.createElement('script');
+        script.type = 'module';
+        script.textContent = `
+            try {
+                console.log('[test.html] Loading modules...');
+                import('./src/main.js').then(() => {
+                    document.getElementById('log').innerHTML += '<div class="success">[test.html] ✓ main.js loaded successfully</div>';
+                }).catch(err => {
+                    document.getElementById('log').innerHTML += '<div class="error">[test.html] ✗ Failed to load main.js: ' + err.message + '</div>';
+                    console.error('[test.html] Error:', err);
+                });
+            } catch (err) {
+                document.getElementById('log').innerHTML += '<div class="error">[test.html] ✗ Error: ' + err.message + '</div>';
+            }
+        `;
+        document.body.appendChild(script);
+        
+        // Test 5: Check localStorage
+        try {
+            localStorage.setItem('test', 'ok');
+            localStorage.removeItem('test');
+            addLog('✓ localStorage working', 'success');
+        } catch (err) {
+            addLog('✗ localStorage error: ' + err.message, 'error');
+        }
+        
+        // Test 6: Check network connectivity to server
+        addLog('Testing server connectivity...', 'info');
+        fetch('https://evoblasters-server-production.up.railway.app/health')
+            .then(r => r.json())
+            .then(data => {
+                addLog('✓ Server is responding: ' + JSON.stringify(data), 'success');
+            })
+            .catch(err => {
+                addLog('✗ Server connection failed: ' + err.message, 'error');
+            });
+    </script>
+</body>
+</html>
