@@ -30,7 +30,7 @@ console.log("[BOOT] Colyseus available:", typeof Colyseus !== "undefined");
 const config = {
   type: Phaser.AUTO,
   parent: "game-root",
-  backgroundColor: "#ffffff",
+  backgroundColor: "#050a18",
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -46,5 +46,12 @@ const config = {
   scene: [StartScene, LobbyScene, WaitingScene, GameScene],
 };
 
-new Phaser.Game(config);
+try {
+  console.log("[BOOT] Creating Phaser game...");
+  const game = new Phaser.Game(config);
+  console.log("[BOOT] Phaser game created successfully");
+} catch (err) {
+  console.error("[BOOT] Failed to create Phaser game:", err);
+  document.body.innerHTML = `<div style="color: red; padding: 20px; font-family: monospace;">Error initializing game: ${err.message}</div>`;
+}
 
