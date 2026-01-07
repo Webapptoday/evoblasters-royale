@@ -60,6 +60,16 @@ export const net = {
         this.currentOpponentId = opponentId;
         this.currentMatchId = matchId;
 
+        // ✅ Notify UI immediately
+        if (this.matchFoundCallback) {
+          console.log("[net.js] Calling matchFoundCallback");
+          this.matchFoundCallback({ 
+            opponent: opponent,
+            opponentId: opponentId,
+            matchId: matchId 
+          });
+        }
+
         // ✅ CRITICAL: Send acceptance before joining battle room
         console.log("[net.js] Accepting match:", matchId);
         matchRoom.send("match_accepted", { matchId });
@@ -121,15 +131,6 @@ export const net = {
             console.error("[net.js] Battle room error:", code, message);
             this.battleRoom = null;
           });
-
-          // ✅ Notify that match started
-          if (this.matchFoundCallback) {
-            this.matchFoundCallback({ 
-              opponent: this.currentOpponent || "Opponent",
-              opponentId: this.currentOpponentId,
-              matchId: this.currentMatchId 
-            });
-          }
         } catch (err) {
           console.error("[net.js] ❌ Failed to join battle room:", err);
           this.battleRoom = null;
