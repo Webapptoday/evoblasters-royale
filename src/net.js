@@ -56,10 +56,10 @@ export const net = {
           setTimeout(() => reject(new Error("Connection timeout - server may be down")), 10000)
         );
 
-        // Step 1: Join matchmaking lobby
+        // Step 1: Join matchmaking lobby (ALL players join same room)
         console.log("[net.js] Joining matchmaking lobby...");
         const matchRoom = await Promise.race([
-          this.client.joinOrCreate("matchmaking"),
+          this.client.joinOrCreate("matchmaking", { type: "matchmaking" }),
           connectionTimeout
         ]);
         this.matchmakingRoom = matchRoom;
