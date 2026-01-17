@@ -216,6 +216,13 @@ export class GameScene extends Phaser.Scene {
           if (b && b.active) b.destroy();
         });
 
+        // ✅ Update remote player HP from shot message
+        if (msg.hitHp !== undefined) {
+          this.otherHp[msg.hitId] = msg.hitHp;
+          this.updateOtherHpBar(msg.hitId);
+          console.log("[GameScene] Updated HP for", msg.hitId, "to", msg.hitHp);
+        }
+
         // flash the hit player if we have their sprite
         const targetSpr = this.remoteSprites.get(msg.hitId);
         if (targetSpr) {
