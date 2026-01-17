@@ -16,10 +16,17 @@ export const net = {
   currentOpponent: null, // ✅ Store opponent name
   currentOpponentId: null, // ✅ Store opponent ID
   currentMatchId: null, // ✅ Store current match ID
+  objective: null, // ✅ Objective state
 
   registerShotListener(callback) {
     this.onShotCallbacks.push(callback);
     console.log("[net.js] Registered shot listener, total:", this.onShotCallbacks.length);
+  },
+
+  objectiveDestroyedCallback: null,
+  registerObjectiveDestroyedListener(callback) {
+    this.objectiveDestroyedCallback = callback;
+    console.log("[net.js] Registered objective destroyed listener");
   },
 
   async connect(playerName = "Player") {
@@ -117,6 +124,17 @@ export const net = {
                 name: p.name,
               });
             });
+            
+            // ✅ Sync objective state
+            if (state.objective) {
+              this.objective = {
+                x: state.objective.x,
+                y: state.objective.y,
+                hp: state.objective.hp,
+                alive: state.objective.alive,
+              };
+            }
+            
             console.log("[net.js] Total players in battle:", this.players.size);
           });
 
@@ -130,6 +148,14 @@ export const net = {
                 console.error("[net.js] Error in shot callback:", err);
               }
             });
+          });
+
+          // ✅ Wire objective destroyed listener
+          battleRoom.onMessage("objective_destroyed", (msg) => {
+            console.log("[net.js] 🎉 Objective destroyed! Potion at:", msg);
+            if (this.objectiveDestroyedCallback) {
+              this.objectiveDestroyedCallback(msg);
+            }
           });
 
           battleRoom.onLeave((code) => {

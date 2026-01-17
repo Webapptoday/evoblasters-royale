@@ -288,7 +288,11 @@ export class GameScene extends Phaser.Scene {
       this.chests.push(chest);
     }
 
-    // ---------- UI ----------
+    // ---------- Objective (Pink Circle at Center) ----------
+    this.objective = null;
+    this.objectiveHpBar = null;
+
+    // UI ----------
     this.uiPanel = this.add.rectangle(0, 0, 260, 190, 0x000000, 0.45)
       .setOrigin(1, 0)
       .setScrollFactor(0)
@@ -435,6 +439,7 @@ export class GameScene extends Phaser.Scene {
 
     this.drawSafeZone();
     this.drawHealthBar();
+    this.drawObjective();
     this.updateUI(time);
     this.updateChestPrompt();
 
@@ -916,6 +921,73 @@ export class GameScene extends Phaser.Scene {
 
     this.hpBar.fillStyle(0x34d399, 1);
     this.hpBar.fillRoundedRect(x + 1, y + 1, (barW - 2) * pct, barH - 2, 3);
+  }
+
+  drawObjective() {
+    // ✅ Create objective circle if it doesn't exist
+    if (net.objective && !this.objective) {
+      this.objective = this.add.circle(net.objective.x, net.objective.y, 40, 0xff1493); // Deep pink
+      this.objective.setDepth(5);
+      
+      // Setup objective destroyed callback
+      net.registerObjectiveDestroyedListener((msg) => {
+        console.log("[GameScene] Objective destroyed, potion spawning");
+        if (this.objective) {
+          this.objective.destroy();
+          this.objective = null;
+        }
+        
+        // Spawn potion at center
+        const potion = this.physics.add.image(msg.potionX, msg.potionY, "potion");
+        potion.setImmovable(true);
+        potion.body.allowGravity = false;
+        potion.setDepth(2);
+        potion.setScale(0.15);
+        potion.isPotion = true;
+        potion.healAmount = POTION_HEAL;
+        
+        this.potions = this.potions || [];
+        this.potions.push(potion);
+      });
+    }
+    
+    // ✅ Update objective position and draw HP bar
+    if (net.objective && this.objective) {
+      this.objective.x = net.objective.x;
+      this.objective.y = net.objective.y;
+      
+      // Draw HP bar above objective
+      if (!this.objectiveHpBar) {
+        this.objectiveHpBar = this.add.graphics();
+      }
+      
+      this.objectiveHpBar.clear();
+      
+      if (net.objective.alive) {
+        const barW = 80, barH = 6;
+        const x = net.objective.x - barW / 2;
+        const y = net.objective.y - 50;
+        
+        const pct = Phaser.Math.Clamp(net.objective.hp / 200, 0, 1);
+        
+        // Background
+        this.objectiveHpBar.fillStyle(0x000000, 0.60);
+        this.objectiveHpBar.fillRoundedRect(x, y, barW, barH, 2);
+        
+        // HP bar (pink)
+        this.objectiveHpBar.fillStyle(0xff1493, 1);
+        this.objectiveHpBar.fillRoundedRect(x + 1, y + 1, (barW - 2) * pct, barH - 2, 2);
+        
+        // HP text
+        if (!this.objectiveHpText) {
+          this.objectiveHpText = this.add.text(0, 0, "", { fontSize: "12px", color: "#ffffff" });
+        }
+        this.objectiveHpText.setText(`${Math.ceil(net.objective.hp)}/200`);
+        this.objectiveHpText.setPosition(x + barW / 2 - this.objectiveHpText.width / 2, y - 16);
+      }
+    } else if (this.objectiveHpBar) {
+      this.objectiveHpBar.clear();
+    }
   }
 
   // ---------- UI ----------
