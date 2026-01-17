@@ -34,21 +34,32 @@ export const net = {
     }
 
     connectingPromise = (async () => {
-      console.log("[net.js] Connecting to Colyseus…");
+      try {
+        console.log("[net.js] Connecting to Colyseus…");
+        console.log("[net.js] Endpoint:", ENDPOINT);
 
-      // ✅ create client ONCE
-      if (!this.client) {
-        this.client = new Colyseus.Client(ENDPOINT);
-      }
+        // ✅ create client ONCE
+        if (!this.client) {
+          console.log("[net.js] Creating new Colyseus client...");
+          this.client = new Colyseus.Client(ENDPOINT);
+        }
 
-      // Step 1: Join matchmaking lobby
-      console.log("[net.js] Joining matchmaking lobby...");
-      const matchRoom = await this.client.joinOrCreate("matchmaking");
-      this.matchmakingRoom = matchRoom;
-      this.room = matchRoom; // ✅ Current active room
-      this.sessionId = matchRoom.sessionId;
+        // ✅ Add timeout to connection attempt (10 seconds)
+        const connectionTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Connection timeout - server may be down")), 10000)
+        );
 
-      console.log("[net.js] Joined matchmaking, sessionId:", this.sessionId);
+        // Step 1: Join matchmaking lobby
+        console.log("[net.js] Joining matchmaking lobby...");
+        const matchRoom = await Promise.race([
+          this.client.joinOrCreate("matchmaking"),
+          connectionTimeout
+        ]);
+        this.matchmakingRoom = matchRoom;
+        this.room = matchRoom; // ✅ Current active room
+        this.sessionId = matchRoom.sessionId;
+
+        console.log("[net.js] ✅ Joined matchmaking, sessionId:", this.sessionId);
 
       // ✅ Listen for match found event
       matchRoom.onMessage("match_found", async (msg) => {
@@ -146,6 +157,7 @@ export const net = {
 
       matchRoom.onError((code, message) => {
         console.error("[net.js] Matchmaking error:", code, message);
+        connectingPromise = null;
       });
 
       // Step 3: Send join_queue message to enter matchmaking
@@ -153,6 +165,11 @@ export const net = {
       matchRoom.send("join_queue", { name: playerName });
 
       return matchRoom;
+      } catch (error) {
+        console.error("[net.js] ❌ CONNECTION ERROR:", error);
+        connectingPromise = null;
+        throw error; // Re-throw so StartScene can catch it
+      }
     })();
 
     return connectingPromise;
