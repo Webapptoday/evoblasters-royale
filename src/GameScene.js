@@ -447,6 +447,7 @@ export class GameScene extends Phaser.Scene {
     this.drawSafeZone();
     this.drawHealthBar();
     this.drawObjective();
+    this.drawAllRemoteHpBars(); // ✅ Redraw all remote HP bars
     this.updateUI(time);
     this.updateChestPrompt();
 
@@ -678,6 +679,13 @@ export class GameScene extends Phaser.Scene {
     bar.fillRoundedRect(x, y, barW, barH, 3);
     bar.fillStyle(0x34d399, 1);
     bar.fillRoundedRect(x + 1, y + 1, (barW - 2) * pct, barH - 2, 3);
+  }
+
+  drawAllRemoteHpBars() {
+    // ✅ Redraw all remote player HP bars every frame
+    for (const id of this.otherHpBars.keys()) {
+      this.updateOtherHpBar(id);
+    }
   }
 
   // ---------- Chests / Interaction ----------

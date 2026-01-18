@@ -108,6 +108,7 @@ export const net = {
           
           this.battleRoom = battleRoom;
           this.room = battleRoom;
+          console.log("[net.js] ✅ Joined battle room:", battleRoom.roomId, "Session:", battleRoom.sessionId);
           
           console.log("[net.js] Successfully joined battle room:", battleRoom.roomId);
 
