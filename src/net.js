@@ -96,14 +96,14 @@ export const net = {
       // ✅ Listen for game_start (only after both players accept)
       matchRoom.onMessage("game_start", async (msg) => {
         console.log("[net.js] Game start approved by server!", msg);
-        const { matchId, roomId } = msg;
+        const { matchId } = msg;
 
         try {
-          // ✅ Use joinOrCreate with specific room criteria
-          console.log("[net.js] Joining battle room:", matchId);
+          // ✅ Use joinOrCreate with matchId as identifier so both players get same room
+          console.log("[net.js] Joining battle room for match:", matchId);
           const battleRoom = await this.client.joinOrCreate("battle", { 
             name: playerName,
-            matchId: matchId,
+            matchId: matchId,  // This identifies which battle room
           });
           
           this.battleRoom = battleRoom;
