@@ -21,6 +21,25 @@ export class LobbyScene extends Phaser.Scene {
       fontFamily: "monospace", fontSize: "18px", color: "#00ff00", align: "center"
     }).setOrigin(0.5);
 
+    this.playerList = this.add.text(cx, cy + 100, "", {
+      fontFamily: "monospace", fontSize: "14px", color: "#b7c5ff", align: "center"
+    }).setOrigin(0.5);
+
+    // ✅ Listen to matchmaking room state to display waiting players
+    if (net.matchmakingRoom) {
+      net.matchmakingRoom.onStateChange((state) => {
+        const players = [];
+        state.queue.forEach((p) => {
+          players.push(p.name);
+        });
+        if (players.length > 0) {
+          this.playerList.setText("Players waiting: " + players.join(", "));
+        } else {
+          this.playerList.setText("");
+        }
+      });
+    }
+
     // ✅ Set callback for when match is found
     net.matchFoundCallback = (matchInfo) => {
       console.log("[LobbyScene] Match found! Opponent:", matchInfo.opponent);

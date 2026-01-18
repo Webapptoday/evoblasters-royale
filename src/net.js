@@ -68,6 +68,11 @@ export const net = {
 
         console.log("[net.js] ✅ Joined matchmaking, sessionId:", this.sessionId);
 
+      // ✅ Listen to matchmaking room state for waiting players
+      matchRoom.onStateChange((state) => {
+        console.log("[net.js] Matchmaking state changed, waiting players:", state.queue.size);
+      });
+
       // ✅ Listen for match found event
       matchRoom.onMessage("match_found", async (msg) => {
         console.log("[net.js] ✅ MATCH FOUND!", msg);

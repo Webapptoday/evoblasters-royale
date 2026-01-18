@@ -21,8 +21,12 @@ export class WaitingScene extends Phaser.Scene {
     if (net.battleRoom) {
       console.log("[WaitingScene] Battle room connected, waiting for server signal...");
       
-      // Send ready signal to server
-      net.battleRoom.send("game_ready", { timestamp: Date.now() });
+      // Wait for battleRoom to be ready (it may still be joining)
+      this.time.delayedCall(100, () => {
+        // Send ready signal to server
+        console.log("[WaitingScene] Sending game_ready...");
+        net.battleRoom.send("game_ready", { timestamp: Date.now() });
+      });
       
       // Wait for both players to be ready before starting
       net.battleRoom.onMessage("game_can_start", (msg) => {
