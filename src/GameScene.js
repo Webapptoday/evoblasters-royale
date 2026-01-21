@@ -542,12 +542,19 @@ export class GameScene extends Phaser.Scene {
 
   // ---------- Shooting ----------
   tryFireBullet(time) {
-    if (this.player.reloading) return;
+    if (this.player.reloading) {
+      console.log("[tryFireBullet] ❌ Reloading, cannot shoot");
+      return;
+    }
 
     const w = this.player.weapon;
-    if (time - this.player.lastShotAt < w.fireRateMs) return;
+    if (time - this.player.lastShotAt < w.fireRateMs) {
+      console.log("[tryFireBullet] ❌ Fire rate limited:", (time - this.player.lastShotAt).toFixed(0), "/", w.fireRateMs);
+      return;
+    }
 
     if (this.player.ammo <= 0) {
+      console.log("[tryFireBullet] ❌ Out of ammo");
       this.tryReload(time);
       return;
     }
@@ -564,10 +571,10 @@ export class GameScene extends Phaser.Scene {
 
     // Send to server (server will broadcast "shot" event for all clients)
     if (net.room) {
-      console.log("[tryFireBullet] Sending shoot to server:", { sx, sy, dx: dir.x, dy: dir.y });
+      console.log("[tryFireBullet] 🔫 Sending shoot to server:", { x: sx.toFixed(0), y: sy.toFixed(0), dx: dir.x.toFixed(2), dy: dir.y.toFixed(2) }, "Ammo:", this.player.ammo);
       net.room.send("shoot", { x: sx, y: sy, dx: dir.x, dy: dir.y });
     } else {
-      console.warn("[tryFireBullet] net.room not ready");
+      console.warn("[tryFireBullet] ❌ net.room not ready");
     }
   }
 
