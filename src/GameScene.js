@@ -1024,12 +1024,16 @@ export class GameScene extends Phaser.Scene {
       ? `Reloading: ${Math.max(0, Math.ceil((this.player.reloadEndsAt - time) / 1000))}s`
       : "";
 
+    // ✅ Diagnostics
+    const diagnostics = `[DIAGNOSTIC] Players: ${net.players.size} | Sprites: ${this.remoteSprites.size}`;
+
     this.uiText.setText(
       `${mapText}\n` +
       `HP: ${Math.ceil(this.player.hp)}/${this.player.maxHp}\n` +
       `Gun: ${w.name} (${w.damage} dmg)\n` +
       `Ammo: ${this.player.ammo}/${w.magSize} ${reloadText}\n` +
-      `SPACE: shoot • E: interact/equip • F: potion`
+      `SPACE: shoot • E: interact/equip • F: potion\n` +
+      `${diagnostics}`
     );
   }
 
