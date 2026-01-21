@@ -21,6 +21,20 @@ export class WaitingScene extends Phaser.Scene {
     if (net.battleRoom) {
       console.log("[WaitingScene] Battle room connected, waiting for server signal...");
       
+      let gameStarted = false;
+      
+      // ✅ Safety timeout: if game_can_start doesn't arrive in 20 seconds, go back to lobby
+      this.time.delayedCall(20000, () => {
+        if (!gameStarted) {
+          console.warn("[WaitingScene] Timeout waiting for opponent! Going back to lobby.");
+          this.status.setText("Opponent not found, returning to lobby...");
+          this.status.setColor("#ff6b6b");
+          this.time.delayedCall(1000, () => {
+            this.scene.start("LobbyScene");
+          });
+        }
+      });
+      
       // Wait for battleRoom to be ready (it may still be joining)
       this.time.delayedCall(100, () => {
         // Send ready signal to server
@@ -31,6 +45,7 @@ export class WaitingScene extends Phaser.Scene {
       // Wait for both players to be ready before starting
       net.battleRoom.onMessage("game_can_start", (msg) => {
         console.log("[WaitingScene] ✅ Server says game can start!");
+        gameStarted = true;
         this.status.setText("Starting!");
         this.status.setColor("#00ff00");
         

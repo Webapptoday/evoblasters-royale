@@ -114,22 +114,25 @@ export const net = {
           this.battleRoom = battleRoom;
           this.room = battleRoom;
           console.log("[net.js] ✅ Joined battle room:", battleRoom.roomId, "Session:", battleRoom.sessionId);
-          
-          console.log("[net.js] Successfully joined battle room:", battleRoom.roomId);
+          console.log("[net.js] Battle room initial state - players:", battleRoom.state.players?.size || 0, "Expected: 2");
 
           // ✅ Set up state sync for battle room
           battleRoom.onStateChange((state) => {
-            console.log("[net.js] Battle state changed, players count:", state.players.size);
+            console.log("[net.js] Battle state changed, players count:", state.players?.size || 0);
             this.players.clear();
-            state.players.forEach((p, id) => {
-              this.players.set(id, {
-                x: p.x,
-                y: p.y,
-                hp: p.hp,
-                alive: p.alive,
-                name: p.name,
+            if (state.players) {
+              state.players.forEach((p, id) => {
+                console.log("[net.js] Processing player in state:", id, { x: p.x, y: p.y, hp: p.hp, alive: p.alive });
+                this.players.set(id, {
+                  x: p.x,
+                  y: p.y,
+                  hp: p.hp,
+                  alive: p.alive,
+                  name: p.name,
+                });
               });
-            });
+              console.log("[net.js] After sync, this.players has", this.players.size, 'players');
+            }
             
             // ✅ Sync objective state
             if (state.objective) {
