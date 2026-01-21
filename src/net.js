@@ -145,10 +145,13 @@ export const net = {
           });
 
           // ✅ Wire shot listener for battle room
+          console.log("[net.js] Registering onMessage handler for 'shot' events");
           battleRoom.onMessage("shot", (msg) => {
-            console.log("[net.js] Shot event in battle:", msg);
-            this.onShotCallbacks.forEach(cb => {
+            console.log("[net.js] Shot event received in battle room:", msg);
+            console.log("[net.js] Calling", this.onShotCallbacks.length, "shot callbacks");
+            this.onShotCallbacks.forEach((cb, idx) => {
               try {
+                console.log("[net.js] Calling callback", idx);
                 cb(msg);
               } catch (err) {
                 console.error("[net.js] Error in shot callback:", err);

@@ -44,13 +44,17 @@ export class LobbyScene extends Phaser.Scene {
     net.matchFoundCallback = (matchInfo) => {
       console.log("[LobbyScene] Match found! Opponent:", matchInfo.opponent);
       this.opponent.setText("vs " + matchInfo.opponent);
-      this.status.setText("Match starting...");
-      
-      // Auto-transition after brief delay for visual effect
-      this.time.delayedCall(500, () => {
+      this.status.setText("Match found - waiting for opponent to accept...");
+      // ✅ DON'T transition yet - wait for game_start from server
+    };
+
+    // ✅ Wait for server to send game_start (after BOTH players accept)
+    if (net.matchmakingRoom) {
+      net.matchmakingRoom.onMessage("game_start", (msg) => {
+        console.log("[LobbyScene] Server approved game start, transitioning to WaitingScene");
         this.scene.start("WaitingScene");
       });
-    };
+    }
 
     console.log("[LobbyScene] Waiting in matchmaking queue...");
   }
