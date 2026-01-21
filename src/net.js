@@ -119,19 +119,15 @@ export const net = {
           // ✅ Set up state sync for battle room
           battleRoom.onStateChange((state) => {
             console.log("[net.js] Battle state changed, players count:", state.players?.size || 0);
+            // ✅ DON'T COPY - just store references to the live state objects
             this.players.clear();
             if (state.players) {
               state.players.forEach((p, id) => {
-                console.log("[net.js] Processing player in state:", id, { x: p.x, y: p.y, hp: p.hp, alive: p.alive });
-                this.players.set(id, {
-                  x: p.x,
-                  y: p.y,
-                  hp: p.hp,
-                  alive: p.alive,
-                  name: p.name,
-                });
+                console.log("[net.js] Player in state:", id.substring(0, 8), "...", { x: p.x, y: p.y, hp: p.hp });
+                // Store reference to live player object, not a copy!
+                this.players.set(id, p);
               });
-              console.log("[net.js] After sync, this.players has", this.players.size, 'players');
+              console.log("[net.js] ✅ Synced net.players, now has', this.players.size, 'players');
             }
             
             // ✅ Sync objective state
