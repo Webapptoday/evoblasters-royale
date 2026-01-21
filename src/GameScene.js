@@ -678,7 +678,20 @@ export class GameScene extends Phaser.Scene {
     const s = this.otherPlayers[id];
     const hp = this.otherHp[id];
     const bar = this.otherHpBars[id];
-    if (!s || !bar || typeof hp !== "number") return;
+    
+    // Make sure we have all needed references
+    if (!s) {
+      console.warn("[updateOtherHpBar] No sprite for player', id);
+      return;
+    }
+    if (!bar) {
+      console.warn("[updateOtherHpBar] No bar for player', id);
+      return;
+    }
+    if (typeof hp !== "number") {
+      console.warn("[updateOtherHpBar] Invalid HP for player', id, ':', hp);
+      return;
+    }
 
     const pct = Phaser.Math.Clamp(hp / 100, 0, 1);
     const barW = 42, barH = 6;
