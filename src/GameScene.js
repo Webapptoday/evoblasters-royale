@@ -237,8 +237,17 @@ export class GameScene extends Phaser.Scene {
         // flash the hit player if we have their sprite
         const targetSpr = this.remoteSprites.get(msg.hitId);
         if (targetSpr) {
+          console.log("[GameScene] ⚡ Flashing hit player', msg.hitId);
+          targetSpr.setAlpha(1); // Ensure visible first
           targetSpr.setAlpha(0.3);
-          this.time.delayedCall(80, () => targetSpr.setAlpha(1));
+          const flashTimer = this.time.delayedCall(80, () => {
+            if (targetSpr && targetSpr.active) {
+              console.log("[GameScene] 💫 Resetting alpha for', msg.hitId);
+              targetSpr.setAlpha(1);
+            }
+          });
+        } else {
+          console.warn("[GameScene] ⚠️ No sprite found for hit player', msg.hitId);
         }
       }
     });
