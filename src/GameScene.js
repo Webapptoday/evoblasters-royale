@@ -209,23 +209,29 @@ export class GameScene extends Phaser.Scene {
     // ✅ Listen for shots (spawn bullets for EVERYONE + show hits)
     console.log("[GameScene] Registering shot listener callback...");
     net.registerShotListener((msg) => {
-      console.log("[GameScene] Shot callback fired with:", msg);
+      console.log("[GameScene] 🔫 Shot received:", msg);
+      console.log("[GameScene]   hitId:", msg.hitId, "hitHp:", msg.hitHp);
       const dir = new Phaser.Math.Vector2(msg.dx, msg.dy).normalize();
 
       // Spawn bullet visuals for everyone (including you)
       const b = this.fireBullet(msg.x, msg.y, dir, this.player.weapon);
+      console.log("[GameScene] 🟡 Bullet created:", b ? "YES" : "NO");
 
       // If server says it hit someone, end bullet early (visual)
       if (msg.hitId && b) {
+        console.log("[GameScene] ✅ HIT DETECTED! Destroying bullet in 60ms");
         this.time.delayedCall(60, () => {
-          if (b && b.active) b.destroy();
+          if (b && b.active) {
+            console.log("[GameScene] 💥 Destroying bullet");
+            b.destroy();
+          }
         });
 
         // ✅ Update remote player HP from shot message
         if (msg.hitHp !== undefined) {
+          console.log("[GameScene] 💚 Updating opponent HP to", msg.hitHp);
           this.otherHp[msg.hitId] = msg.hitHp;
           this.updateOtherHpBar(msg.hitId);
-          console.log("[GameScene] Updated HP for", msg.hitId, "to", msg.hitHp);
         }
 
         // flash the hit player if we have their sprite
@@ -687,8 +693,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   drawAllRemoteHpBars() {
-    // ✅ Redraw all remote player HP bars every frame
-    for (const id of this.otherHpBars.keys()) {
+    // ✅ Redraw HP bars for ALL remote players, not just ones in otherHpBars
+    for (const id of this.remoteSprites.keys()) {
+      if (!this.otherHpBars[id]) {
+        this.otherHpBars[id] = this.add.graphics().setDepth(15);
+      }
       this.updateOtherHpBar(id);
     }
   }
