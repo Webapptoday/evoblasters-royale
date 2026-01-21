@@ -125,6 +125,11 @@ export class GameScene extends Phaser.Scene {
     this.otherHp = {}; // ✅ Track HP for each remote player
     this.otherHpBars = {}; // ✅ Track HP bar graphics for each remote player
     this.otherPlayers = {}; // ✅ Track other player references
+    
+    console.log("[GameScene] Created - Initial state check:");
+    console.log("[GameScene]   net.players.size:", net.players?.size || 0);
+    console.log("[GameScene]   net.sessionId:", net.sessionId);
+    console.log("[GameScene]   net.room:", net.room?.roomId || "null");
 
     // Update remote player positions every 50ms
     this.time.addEvent({
