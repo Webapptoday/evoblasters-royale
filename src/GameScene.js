@@ -579,14 +579,7 @@ export class GameScene extends Phaser.Scene {
     // Send to server (server will broadcast "shot" event for all clients)
     if (net.room) {
       console.log("[tryFireBullet] 🔫 Sending shoot to server:", { x: sx.toFixed(0), y: sy.toFixed(0), dx: dir.x.toFixed(2), dy: dir.y.toFixed(2) }, "Ammo:", this.player.ammo);
-      net.room.send("shoot", { 
-        x: sx, 
-        y: sy, 
-        dx: dir.x, 
-        dy: dir.y,
-        shooterX: this.player.x,  // Include shooter position
-        shooterY: this.player.y
-      });
+      net.sendShoot(sx, sy, dir.x, dir.y);
     } else {
       console.warn("[tryFireBullet] ❌ net.room not ready");
     }
@@ -1082,7 +1075,9 @@ export class GameScene extends Phaser.Scene {
       : "";
 
     // ✅ Diagnostics
-    const diagnostics = `[DIAGNOSTIC] Players: ${net.players.size} | Sprites: ${this.remoteSprites.size}`;
+    const roomId = net.room ? net.room.roomId.slice(0, 8) : "WAITING";
+    const sessionId = net.sessionId ? net.sessionId.slice(0, 8) : "NONE";
+    const diagnostics = `[${roomId}] Players: ${net.players.size} | You: ${sessionId}`;
 
     this.uiText.setText(
       `${mapText}\n` +

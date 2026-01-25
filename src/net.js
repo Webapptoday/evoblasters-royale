@@ -1,39 +1,23 @@
-// Colyseus is loaded from CDN in index.html
 const ENDPOINT = "wss://evoblasters-server-production.up.railway.app";
 
 let connectingPromise = null;
-let matchmakingPromise = null;
 
 export const net = {
   client: null,
-  matchmakingRoom: null, // ✅ Lobby room
-  battleRoom: null, // ✅ Battle room
-  room: null, // ✅ Reference to current active room
+  room: null,
   sessionId: null,
   players: new Map(),
   onShotCallbacks: [],
-  matchFoundCallback: null, // ✅ Callback when match found
-  currentOpponent: null, // ✅ Store opponent name
-  currentOpponentId: null, // ✅ Store opponent ID
-  currentMatchId: null, // ✅ Store current match ID
-  objective: null, // ✅ Objective state
 
   registerShotListener(callback) {
     this.onShotCallbacks.push(callback);
-    console.log("[net.js] Registered shot listener, total:", this.onShotCallbacks.length);
-  },
-
-  objectiveDestroyedCallback: null,
-  registerObjectiveDestroyedListener(callback) {
-    this.objectiveDestroyedCallback = callback;
-    console.log("[net.js] Registered objective destroyed listener");
+    console.log("[net] Registered shot listener");
   },
 
   async connect(playerName = "Player") {
-    // ✅ prevent double connect
-    if (this.battleRoom) {
-      console.warn("Already in battle, reusing battle room");
-      return this.battleRoom;
+    if (this.room) {
+      console.warn("[net] Already in battle room");
+      return this.room;
     }
 
     if (connectingPromise) {
@@ -42,167 +26,68 @@ export const net = {
 
     connectingPromise = (async () => {
       try {
-        console.log("[net.js] Connecting to Colyseus…");
-        console.log("[net.js] Endpoint:", ENDPOINT);
+        console.log("[net] Connecting to", ENDPOINT);
 
-        // ✅ create client ONCE
         if (!this.client) {
-          console.log("[net.js] Creating new Colyseus client...");
           this.client = new Colyseus.Client(ENDPOINT);
         }
 
-        // ✅ Add timeout to connection attempt (10 seconds)
-        const connectionTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("Connection timeout - server may be down")), 10000)
-        );
+        // Direct join to "battle" room
+        console.log("[net] Joining battle room...");
+        this.room = await this.client.joinOrCreate("battle", {
+          name: playerName.slice(0, 16),
+        });
 
-        // Step 1: Join matchmaking lobby (ALL players join same room)
-        console.log("[net.js] Joining matchmaking lobby...");
-        const matchRoom = await Promise.race([
-          this.client.joinOrCreate("matchmaking", { type: "matchmaking" }),
-          connectionTimeout
-        ]);
-        this.matchmakingRoom = matchRoom;
-        this.room = matchRoom; // ✅ Current active room
-        this.sessionId = matchRoom.sessionId;
+        this.sessionId = this.room.sessionId;
+        console.log("[net] Joined battle room:", this.room.roomId);
+        console.log("[net] My sessionId:", this.sessionId.slice(0, 8));
 
-        console.log("[net.js] ✅ Joined matchmaking, sessionId:", this.sessionId);
+        // ✅ Listen to room state updates
+        this.room.onStateChange.once((state) => {
+          console.log("[net] Initial state received");
+        });
 
-      // ✅ Listen to matchmaking room state for waiting players
-      matchRoom.onStateChange((state) => {
-        console.log("[net.js] Matchmaking state changed, waiting players:", state.queue.size);
-      });
-
-      // ✅ Listen for match found event
-      matchRoom.onMessage("match_found", async (msg) => {
-        console.log("[net.js] ✅ MATCH FOUND!", msg);
-        const { matchId, opponent, opponentId } = msg;
-        
-        // ✅ Store opponent info for later
-        this.currentOpponent = opponent;
-        this.currentOpponentId = opponentId;
-        this.currentMatchId = matchId;
-
-        // ✅ Notify UI immediately
-        if (this.matchFoundCallback) {
-          console.log("[net.js] Calling matchFoundCallback");
-          this.matchFoundCallback({ 
-            opponent: opponent,
-            opponentId: opponentId,
-            matchId: matchId 
-          });
-        }
-
-        // ✅ CRITICAL: Send acceptance before joining battle room
-        console.log("[net.js] Accepting match:", matchId);
-        matchRoom.send("match_accepted", { matchId });
-      });
-
-      // ✅ Listen for game_start (only after both players accept)
-      matchRoom.onMessage("game_start", async (msg) => {
-        console.log("[net.js] Game start approved by server!", msg);
-        const { matchId } = msg;
-
-        try {
-          // ✅ Use joinOrCreate with matchId as identifier so both players get same room
-          console.log("[net.js] Joining battle room for match:", matchId);
-          const battleRoom = await this.client.joinOrCreate("battle", { 
-            name: playerName,
-            matchId: matchId,  // This identifies which battle room
-          });
-          
-          this.battleRoom = battleRoom;
-          this.room = battleRoom;
-          console.log("[net.js] ✅ Joined battle room:", battleRoom.roomId, "Session:", battleRoom.sessionId);
-          console.log("[net.js] Battle room initial state - players:", battleRoom.state.players?.size || 0, "Expected: 2");
-
-          // ✅ Set up state sync for battle room
-          battleRoom.onStateChange((state) => {
-            console.log("[net.js] Battle state changed, players count:", state.players?.size || 0);
-            // ✅ DON'T COPY - just store references to the live state objects
-            this.players.clear();
-            if (state.players) {
-              state.players.forEach((p, id) => {
-                console.log("[net.js] Player in state:", id.substring(0, 8), "...", { x: p.x, y: p.y, hp: p.hp });
-                // Store reference to live player object, not a copy!
-                this.players.set(id, p);
-              });
-              console.log("[net.js] ✅ Synced net.players, now has', this.players.size, 'players');
+        this.room.onStateChange((state) => {
+          this.players.clear();
+          if (state.players) {
+            for (const [id, p] of state.players.entries()) {
+              this.players.set(id, p);
             }
-            
-            // ✅ Sync objective state
-            if (state.objective) {
-              this.objective = {
-                x: state.objective.x,
-                y: state.objective.y,
-                hp: state.objective.hp,
-                alive: state.objective.alive,
-              };
-            }
-            
-            console.log("[net.js] Total players in battle:", this.players.size);
-          });
+          }
+          console.log(`[net] State updated - ${this.players.size} players`);
+        });
 
-          // ✅ Wire shot listener for battle room
-          console.log("[net.js] Registering onMessage handler for 'shot' events");
-          battleRoom.onMessage("shot", (msg) => {
-            console.log("[net.js] Shot event received in battle room:", msg);
-            console.log("[net.js] Calling", this.onShotCallbacks.length, "shot callbacks");
-            this.onShotCallbacks.forEach((cb, idx) => {
-              try {
-                console.log("[net.js] Calling callback", idx);
-                cb(msg);
-              } catch (err) {
-                console.error("[net.js] Error in shot callback:", err);
-              }
-            });
-          });
+        // ✅ Match started - game can begin
+        this.room.onMessage("match_start", (msg) => {
+          console.log("[net] MATCH_START received");
+        });
 
-          // ✅ Wire objective destroyed listener
-          battleRoom.onMessage("objective_destroyed", (msg) => {
-            console.log("[net.js] 🎉 Objective destroyed! Potion at:", msg);
-            if (this.objectiveDestroyedCallback) {
-              this.objectiveDestroyedCallback(msg);
-            }
-          });
+        // ✅ Bullets fired (server broadcast) - spawn on all clients
+        this.room.onMessage("shot", (msg) => {
+          console.log(`[net] SHOT: from=${msg.fromId.slice(0, 8)} hitId=${msg.hitId ? msg.hitId.slice(0, 8) : "MISS"}`);
+          this.onShotCallbacks.forEach((cb) => cb(msg));
+        });
 
-          battleRoom.onLeave((code) => {
-            console.warn("[net.js] Left battle room, code:", code);
-            this.battleRoom = null;
-            this.room = this.matchmakingRoom; // Revert to matchmaking
-          });
+        // ✅ Player joined
+        this.room.onMessage("player_joined", (msg) => {
+          console.log(`[net] PLAYER_JOINED: ${msg.name}`);
+        });
 
-          battleRoom.onError((code, message) => {
-            console.error("[net.js] Battle room error:", code, message);
-            this.battleRoom = null;
-          });
-        } catch (err) {
-          console.error("[net.js] ❌ Failed to join battle room:", err);
-          this.battleRoom = null;
-          // Remain in matchmaking and try again
-        }
-      });
+        // ✅ Player left
+        this.room.onMessage("player_left", (msg) => {
+          console.log(`[net] PLAYER_LEFT`);
+        });
 
-      matchRoom.onLeave((code) => {
-        console.warn("[net.js] Left matchmaking, code:", code);
-        this.matchmakingRoom = null;
+        // ✅ Waiting for opponent
+        this.room.onMessage("waiting_for_opponent", (msg) => {
+          console.log("[net] WAITING_FOR_OPPONENT");
+        });
+
+        return this.room;
+      } catch (err) {
+        console.error("[net] Connection error:", err);
         connectingPromise = null;
-      });
-
-      matchRoom.onError((code, message) => {
-        console.error("[net.js] Matchmaking error:", code, message);
-        connectingPromise = null;
-      });
-
-      // Step 3: Send join_queue message to enter matchmaking
-      console.log("[net.js] Sending join_queue to find match...");
-      matchRoom.send("join_queue", { name: playerName });
-
-      return matchRoom;
-      } catch (error) {
-        console.error("[net.js] ❌ CONNECTION ERROR:", error);
-        connectingPromise = null;
-        throw error; // Re-throw so StartScene can catch it
+        throw err;
       }
     })();
 
@@ -212,5 +97,19 @@ export const net = {
   sendMove(x, y) {
     if (!this.room) return;
     this.room.send("move", { x, y });
+  },
+
+  sendShoot(x, y, dx, dy) {
+    if (!this.room) return;
+    this.room.send("shoot", { x, y, dx, dy });
+  },
+
+  async disconnect() {
+    if (this.room) {
+      this.room.leave();
+      this.room = null;
+    }
+    this.players.clear();
+    connectingPromise = null;
   },
 };
