@@ -1,4 +1,5 @@
-const ENDPOINT = "wss://evoblasters-server-production.up.railway.app";
+const ENDPOINT_HTTP = "https://evoblasters-server-production.up.railway.app";
+const ENDPOINT_WS = "wss://evoblasters-server-production.up.railway.app";
 
 let connectingPromise = null;
 
@@ -7,6 +8,7 @@ export const net = {
   room: null,
   sessionId: null,
   players: new Map(),
+  bullets: new Map(),
   onShotCallbacks: [],
 
   registerShotListener(callback) {
@@ -26,89 +28,95 @@ export const net = {
 
     connectingPromise = (async () => {
       try {
-        console.log("[net] Connecting to", ENDPOINT);
-
-        if (!this.client) {
-          console.log("[net] Creating Colyseus client...");
-          this.client = new Colyseus.Client(ENDPOINT);
-        }
-
-        // Direct join to "battle" room with timeout
-        console.log("[net] Joining battle room...");
+        console.log("[net] 1. Calling matchmaker...");
         
-        // Add 15 second timeout for connection
-        const timeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("Connection timeout - server may be down")), 15000)
+        const timeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Matchmaker timeout")), 10000)
         );
 
-        const room = await Promise.race([
-          this.client.joinOrCreate("battle", {
-            name: playerName.slice(0, 16),
-          }),
+        const resp = await Promise.race([
+          fetch(`${ENDPOINT_HTTP}/matchmake`),
           timeout
         ]);
 
-        if (!room) {
-          throw new Error("joinOrCreate returned null/undefined");
+        if (!resp.ok) {
+          throw new Error(`Matchmaker error: ${resp.status}`);
         }
 
-        this.room = room;
-        this.sessionId = room.sessionId;
-        
-        console.log("[net] ✅ Joined battle room:", room.roomId);
+        const data = await resp.json();
+        const roomId = data.roomId;
+
+        if (!roomId) {
+          throw new Error("No roomId from matchmaker");
+        }
+
+        console.log("[net] 2. Got roomId:", roomId.slice(0, 8));
+        console.log("[net] 3. Connecting to WebSocket...");
+
+        if (!this.client) {
+          this.client = new Colyseus.Client(ENDPOINT_WS);
+        }
+
+        const timeout2 = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("WebSocket timeout")), 15000)
+        );
+
+        this.room = await Promise.race([
+          this.client.joinById(roomId, { name: playerName.slice(0, 16) }),
+          timeout2
+        ]);
+
+        if (!this.room) {
+          throw new Error("Failed to join room (returned null)");
+        }
+
+        this.sessionId = this.room.sessionId;
+
+        console.log("[net] ✅ Joined room:", roomId.slice(0, 8));
         console.log("[net] ✅ My sessionId:", this.sessionId.slice(0, 8));
 
-        // ✅ Listen to room state updates
-        if (room.onStateChange) {
-          room.onStateChange.once((state) => {
-            console.log("[net] Initial state received, players:", state.players?.size || 0);
-          });
+        // Listen to state changes
+        this.room.onStateChange((state) => {
+          // Sync players
+          this.players.clear();
+          if (state.players) {
+            state.players.forEach((p, id) => {
+              this.players.set(id, {
+                x: p.x,
+                y: p.y,
+                hp: p.hp,
+                alive: p.alive,
+                name: p.name,
+              });
+            });
+          }
 
-          room.onStateChange((state) => {
-            this.players.clear();
-            if (state.players) {
-              for (const [id, p] of state.players.entries()) {
-                this.players.set(id, p);
-              }
-            }
-            console.log(`[net] State updated - ${this.players.size} players`);
-          });
-        }
+          // Sync bullets
+          this.bullets.clear();
+          if (state.bullets) {
+            state.bullets.forEach((b, id) => {
+              this.bullets.set(id, {
+                id: b.id,
+                owner: b.owner,
+                x: b.x,
+                y: b.y,
+                vx: b.vx,
+                vy: b.vy,
+              });
+            });
+          }
 
-        // ✅ Match started - game can begin
-        if (room.onMessage) {
-          room.onMessage("match_start", (msg) => {
-            console.log("[net] ✅ MATCH_START - game ready!");
-          });
+          console.log(`[net] State: ${this.players.size} players, ${this.bullets.size} bullets`);
+        });
 
-          // ✅ Bullets fired (server broadcast) - spawn on all clients
-          room.onMessage("shot", (msg) => {
-            console.log(`[net] SHOT: from=${msg.fromId.slice(0, 8)} hitId=${msg.hitId ? msg.hitId.slice(0, 8) : "MISS"}`);
-            this.onShotCallbacks.forEach((cb) => cb(msg));
-          });
-
-          // ✅ Player joined
-          room.onMessage("player_joined", (msg) => {
-            console.log(`[net] PLAYER_JOINED: ${msg.name}`);
-          });
-
-          // ✅ Player left
-          room.onMessage("player_left", (msg) => {
-            console.log(`[net] PLAYER_LEFT`);
-          });
-
-          // ✅ Waiting for opponent
-          room.onMessage("waiting_for_opponent", (msg) => {
-            console.log("[net] WAITING_FOR_OPPONENT - waiting for 2nd player...");
-          });
-        }
-
-        room.onError = (code, err) => {
-          console.error("[net] Room error (code " + code + "):", err);
+        // Error handler
+        this.room.onError = (code, msg) => {
+          console.error("[net] Room error:", code, msg);
         };
 
-        room.onLeave = (code) => {
-          console.warn("[net] Left room, code:", code);
+        // Leave handler
+        this.room.onLeave = () => {
+          console.warn("[net] Left room");
           this.room = null;
         };
 
@@ -128,9 +136,10 @@ export const net = {
     this.room.send("move", { x, y });
   },
 
-  sendShoot(x, y, dx, dy) {
+  shoot(dirx, diry) {
     if (!this.room) return;
-    this.room.send("shoot", { x, y, dx, dy });
+    console.log("[net] Sending shoot:", { dirx, diry });
+    this.room.send("shoot", { dirx, diry });
   },
 
   async disconnect() {
@@ -139,6 +148,9 @@ export const net = {
       this.room = null;
     }
     this.players.clear();
+    this.bullets.clear();
     connectingPromise = null;
   },
 };
+
+export default net;

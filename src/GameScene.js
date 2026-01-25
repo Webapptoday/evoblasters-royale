@@ -121,6 +121,7 @@ export class GameScene extends Phaser.Scene {
 
     // ---------- Network/Remote Players ----------
     this.remoteSprites = new Map();
+    this.bulletSprites = new Map(); // ✅ Track bullet sprites from server state
     this.myId = null;
     this.otherHp = {}; // ✅ Track HP for each remote player
     this.otherHpBars = {}; // ✅ Track HP bar graphics for each remote player
@@ -468,6 +469,7 @@ export class GameScene extends Phaser.Scene {
     this.drawHealthBar();
     this.drawObjective();
     this.drawAllRemoteHpBars(); // ✅ Redraw all remote HP bars
+    this.updateBulletSprites(); // ✅ Render bullets from server state
     this.updateUI(time);
     this.updateChestPrompt();
 
@@ -571,15 +573,10 @@ export class GameScene extends Phaser.Scene {
 
     const dir = this.getAimDirection();
 
-    // Spawn position slightly in front of player
-    const muzzle = 26;
-    const sx = this.player.x + dir.x * muzzle;
-    const sy = this.player.y + dir.y * muzzle;
-
-    // Send to server (server will broadcast "shot" event for all clients)
+    // Send direction to server - server will spawn bullet
     if (net.room) {
-      console.log("[tryFireBullet] 🔫 Sending shoot to server:", { x: sx.toFixed(0), y: sy.toFixed(0), dx: dir.x.toFixed(2), dy: dir.y.toFixed(2) }, "Ammo:", this.player.ammo);
-      net.sendShoot(sx, sy, dir.x, dir.y);
+      console.log("[tryFireBullet] 🔫 Sending shoot to server, dir:", { dx: dir.x.toFixed(2), dy: dir.y.toFixed(2) }, "Ammo:", this.player.ammo);
+      net.shoot(dir.x, dir.y);
     } else {
       console.warn("[tryFireBullet] ❌ net.room not ready");
     }
@@ -695,6 +692,30 @@ export class GameScene extends Phaser.Scene {
       const out = (b.x < 0 || b.x > WORLD_W || b.y < 0 || b.y > WORLD_H);
       if (out) b.destroy();
     });
+  }
+
+  updateBulletSprites() {
+    // Create/update sprites for server bullets
+    if (net.bullets) {
+      for (const [id, b] of net.bullets) {
+        if (!this.bulletSprites.has(id)) {
+          const sprite = this.add.circle(b.x, b.y, 6, 0xffff00);
+          sprite.setDepth(20);
+          this.bulletSprites.set(id, sprite);
+        } else {
+          const sprite = this.bulletSprites.get(id);
+          sprite.setPosition(b.x, b.y);
+        }
+      }
+    }
+
+    // Remove sprites for bullets no longer in server state
+    for (const [id, sprite] of this.bulletSprites) {
+      if (!net.bullets.has(id)) {
+        sprite.destroy();
+        this.bulletSprites.delete(id);
+      }
+    }
   }
 
   updateOtherHpBar(id) {
