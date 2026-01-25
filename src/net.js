@@ -29,22 +29,35 @@ export const net = {
         console.log("[net] Connecting to", ENDPOINT);
 
         if (!this.client) {
+          console.log("[net] Creating Colyseus client...");
           this.client = new Colyseus.Client(ENDPOINT);
+          this.client.onError = (err) => {
+            console.error("[net] Client error:", err);
+          };
         }
 
-        // Direct join to "battle" room
+        // Direct join to "battle" room with timeout
         console.log("[net] Joining battle room...");
-        this.room = await this.client.joinOrCreate("battle", {
-          name: playerName.slice(0, 16),
-        });
+        
+        // Add 15 second timeout for connection
+        const timeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Connection timeout - server may be down or still deploying")), 15000)
+        );
+
+        this.room = await Promise.race([
+          this.client.joinOrCreate("battle", {
+            name: playerName.slice(0, 16),
+          }),
+          timeout
+        ]);
 
         this.sessionId = this.room.sessionId;
-        console.log("[net] Joined battle room:", this.room.roomId);
-        console.log("[net] My sessionId:", this.sessionId.slice(0, 8));
+        console.log("[net] ✅ Joined battle room:", this.room.roomId);
+        console.log("[net] ✅ My sessionId:", this.sessionId.slice(0, 8));
 
         // ✅ Listen to room state updates
         this.room.onStateChange.once((state) => {
-          console.log("[net] Initial state received");
+          console.log("[net] Initial state received, players:", state.players?.size || 0);
         });
 
         this.room.onStateChange((state) => {
@@ -59,7 +72,7 @@ export const net = {
 
         // ✅ Match started - game can begin
         this.room.onMessage("match_start", (msg) => {
-          console.log("[net] MATCH_START received");
+          console.log("[net] ✅ MATCH_START - game ready!");
         });
 
         // ✅ Bullets fired (server broadcast) - spawn on all clients
@@ -80,12 +93,21 @@ export const net = {
 
         // ✅ Waiting for opponent
         this.room.onMessage("waiting_for_opponent", (msg) => {
-          console.log("[net] WAITING_FOR_OPPONENT");
+          console.log("[net] WAITING_FOR_OPPONENT - waiting for 2nd player...");
         });
+
+        this.room.onError = (code, err) => {
+          console.error("[net] Room error (code " + code + "):", err);
+        };
+
+        this.room.onLeave = (code) => {
+          console.warn("[net] Left room, code:", code);
+          this.room = null;
+        };
 
         return this.room;
       } catch (err) {
-        console.error("[net] Connection error:", err);
+        console.error("[net] ❌ Connection error:", err.message || err);
         connectingPromise = null;
         throw err;
       }

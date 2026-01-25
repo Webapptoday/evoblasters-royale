@@ -81,7 +81,9 @@ export class StartScene extends Phaser.Scene {
         btn.setAlpha(1);
         btn.setInteractive({ useHandCursor: true });
 
-        alert("Could not connect to game server. Check console for details.");
+        // Show detailed error
+        const errorMsg = error.message || String(error);
+        alert(`❌ Connection failed:\n\n${errorMsg}\n\nMake sure the server is running. Try again in a few seconds.`);
       }
     });
 
