@@ -517,12 +517,19 @@ export class GameScene extends Phaser.Scene {
 
     // If aim somehow matches player position, aim right
     if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) {
+      console.log("[getAimDirection] ⚠️ Invalid aim, returning (1, 0)");
       return new Phaser.Math.Vector2(1, 0);
     }
 
     const dir = new Phaser.Math.Vector2(dx, dy);
-    if (dir.lengthSq() < 0.0001) return new Phaser.Math.Vector2(1, 0);
-    return dir.normalize();
+    if (dir.lengthSq() < 0.0001) {
+      console.log("[getAimDirection] ⚠️ Zero length direction");
+      return new Phaser.Math.Vector2(1, 0);
+    }
+    
+    const normalized = dir.normalize();
+    console.log("[getAimDirection] Player at:", { x: this.player.x.toFixed(0), y: this.player.y.toFixed(0) }, "Aim at:", { x: this.aim.x.toFixed(0), y: this.aim.y.toFixed(0) }, "Direction:", { x: normalized.x.toFixed(3), y: normalized.y.toFixed(3) });
+    return normalized;
   }
 
   // ---------- Reload ----------
@@ -572,7 +579,14 @@ export class GameScene extends Phaser.Scene {
     // Send to server (server will broadcast "shot" event for all clients)
     if (net.room) {
       console.log("[tryFireBullet] 🔫 Sending shoot to server:", { x: sx.toFixed(0), y: sy.toFixed(0), dx: dir.x.toFixed(2), dy: dir.y.toFixed(2) }, "Ammo:", this.player.ammo);
-      net.room.send("shoot", { x: sx, y: sy, dx: dir.x, dy: dir.y });
+      net.room.send("shoot", { 
+        x: sx, 
+        y: sy, 
+        dx: dir.x, 
+        dy: dir.y,
+        shooterX: this.player.x,  // Include shooter position
+        shooterY: this.player.y
+      });
     } else {
       console.warn("[tryFireBullet] ❌ net.room not ready");
     }
